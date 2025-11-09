@@ -12,7 +12,8 @@ source env/bin/activate   # Linux/Mac
 env\Scripts\activate      # Windows
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py runserver ```
+python manage.py runserver
+```
 
 ## Template para los json
 ```json
