@@ -2,7 +2,7 @@
 
 Proyecto inicial en **Django**.
 
-## 🚀 Instalación
+## Instalación
 
 ```bash
 git clone https://github.com/BlackYcee/Forneria.git
