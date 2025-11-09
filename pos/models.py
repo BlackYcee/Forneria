@@ -17,7 +17,7 @@ class Nutricional(models.Model):
     carbohidratos = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     azucares = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     sodio = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-
+    producto = models.OneToOneField("Producto", on_delete=models.CASCADE, related_name="nutricional", null=True, blank=True)
 
 # Producto
 class Producto(models.Model):
@@ -37,7 +37,9 @@ class Producto(models.Model):
     modificado = models.DateTimeField(null=True, blank=True)
     eliminado = models.DateTimeField(null=True, blank=True)
     categoria = models.ForeignKey(Categoria, on_delete=models.DO_NOTHING)
-    nutricional = models.ForeignKey(Nutricional, on_delete=models.DO_NOTHING)
+    
+    def __str__(self):
+        return self.nombre
 
 
 # Alertas sobre productos
@@ -56,9 +58,9 @@ class Alerta(models.Model):
 
 # Cliente
 class Cliente(models.Model):
-    rut = models.CharField(max_length=12, null=True, blank=True)
-    nombre = models.CharField(max_length=150)
-    correo = models.CharField(max_length=100, null=True, blank=True)
+    rut = models.CharField(max_length=12, unique=True)
+    nombre = models.CharField(max_length=150, null=True, blank=True)
+    correo = models.CharField(max_length=100, unique=True, null=True, blank=True)
 
     def __str__(self):
         return self.nombre
@@ -79,7 +81,7 @@ class Venta(models.Model):
     folio = models.CharField(max_length=20, null=True, blank=True)
     monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     vuelto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    cliente = models.ForeignKey(Cliente, on_delete=models.DO_NOTHING)
+    cliente = models.ForeignKey(Cliente, on_delete=models.DO_NOTHING, null=True, blank=True)
 
 
 # Detalle de cada producto vendido
