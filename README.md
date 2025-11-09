@@ -1,10 +1,10 @@
 "# Forneria" 
-# Crear entorno virtual
+
+'''git clone https://github.com/BlackYcee/Forneria.git
+cd Forneria
 python -m venv env
-
-# Activar entorno
-# En Linux/Mac
-source env/bin/activate
-
-# En Windows
-env\Scripts\activate
+source env/bin/activate   # Linux/Mac
+env\Scripts\activate      # Windows
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver'''
