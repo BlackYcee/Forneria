@@ -21,6 +21,7 @@ class Nutricional(models.Model):
 
 # Producto
 class Producto(models.Model):
+    codigo_barra = models.IntegerField(null=True, blank=True)
     nombre = models.CharField(max_length=100)
     descripcion = models.CharField(max_length=300, null=True, blank=True)
     marca = models.CharField(max_length=100, null=True, blank=True)
@@ -66,6 +67,22 @@ class Cliente(models.Model):
         return self.nombre
 
 
+# Empleado
+class Empleado(models.Model):
+    nombres = models.CharField(max_length=100)
+    apellido_paterno = models.CharField(max_length=45)
+    run = models.CharField(max_length=45, unique=True)
+    correo = models.EmailField(max_length=100)
+    fono = models.IntegerField(unique=True)
+    clave = models.CharField(max_length=100)
+    direccion = models.CharField(max_length=200)
+    cargo = models.CharField(max_length=45)
+
+    def __str__(self):
+        return f"{self.nombres} {self.apellido_paterno}"
+
+
+
 # Venta
 class Venta(models.Model):
     CANAL_VENTA_CHOICES = [
@@ -82,7 +99,7 @@ class Venta(models.Model):
     monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     vuelto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.DO_NOTHING, null=True, blank=True)
-
+    empleado = models.ForeignKey(Empleado, on_delete=models.DO_NOTHING, null=True, blank=True)
 
 # Detalle de cada producto vendido
 class DetalleVenta(models.Model):
@@ -103,22 +120,6 @@ class MovimientoInventario(models.Model):
     cantidad = models.IntegerField()
     fecha = models.DateTimeField()
     producto = models.ForeignKey(Producto, on_delete=models.DO_NOTHING)
-
-
-# Empleado
-class Empleado(models.Model):
-    nombres = models.CharField(max_length=100)
-    apellido_paterno = models.CharField(max_length=45)
-    run = models.CharField(max_length=45, unique=True)
-    correo = models.EmailField(max_length=100)
-    fono = models.IntegerField(unique=True)
-    clave = models.CharField(max_length=100)
-    direccion = models.CharField(max_length=200)
-    cargo = models.CharField(max_length=45)
-
-    def __str__(self):
-        return f"{self.nombres} {self.apellido_paterno}"
-
 
 # Turno de trabajo
 class Turno(models.Model):

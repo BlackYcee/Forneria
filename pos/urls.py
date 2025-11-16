@@ -1,6 +1,7 @@
 from django.urls import path,include
 from rest_framework import routers
-from pos import views
+from . import views
+
 
 router=routers.DefaultRouter()
 router.register(r'categorias', views.CategoriaViewSet)
@@ -15,5 +16,6 @@ router.register(r'empleados', views.EmpleadoViewSet)
 router.register(r'turnos', views.TurnoViewSet)
 
 urlpatterns = [
-    path('', include(router.urls))
+    path('', include(router.urls)),
+    path("sistema/", views.inicio, name='inicio')
 ]

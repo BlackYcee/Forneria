@@ -1,0 +1,253 @@
+html, body {
+    margin: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background-color: #e9ecef;
+    color: #333;
+    min-height: 100vh;
+}
+
+
+
+.navbar {
+    display: flex;
+    flex-direction: column;
+    background-color: rgb(0, 58, 79);
+    min-width: 200px;
+    padding: 20px 0;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.1);
+}
+
+
+
+.navbar-title {
+    color: #fff;
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+
+
+.navbar a {
+    color: white;
+    padding: 12px 20px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+
+
+.navbar a:hover {
+    background-color: #f5f5f5;
+    color: rgb(0, 58, 79);
+    border-radius: 4px;
+}
+
+
+/*css para pos.html*/
+.fondo {
+    margin-top: auto; 
+    text-align: center;
+    padding: 15px;
+    color: white;
+}
+
+.container {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;;
+
+}
+
+.center {
+    padding: 20px;
+    flex: 3;
+    background-image: url(PHOTO.jpg);
+}
+
+.side {
+    padding: 20px;
+    flex: 1;
+    background-color: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.containeropciones {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+/* Buscador */
+.search form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.search input {
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    width: 220px;
+    transition: border-color 0.3s ease;
+}
+
+.search input:focus {
+    border-color: #007bff;
+    outline: none;
+}
+
+/* Botones */
+.btn-search,
+.btn-scan {
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.btn-filter {
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.btn-search {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-search:hover {
+    background-color: #0056b3;
+}
+
+.btn-scan {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-scan:hover {
+    background-color: #1e7e34;
+}
+
+/* Select categorías */
+.filter select {
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    background-color: white;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+}
+
+.filter select:focus {
+    border-color: #007bff;
+    outline: none;
+}
+
+.containercartas {
+    background-color: #f5f5f5;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.card {
+    flex: 1 1 calc(20% - 20px);
+    max-width: 400px;
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+}
+
+.button1 { border: none;
+    color: white;
+    padding: 7px 16px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    background-color: rgb(255, 59, 59);
+    border-radius: 10%;
+} /* Blue */
+
+.search {
+
+    display: flex;
+    align-items: center;
+    margin-right: 20px;
+
+}
+
+.containerusuario{
+    background-color: #f5f5f5;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 20px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.list-group {
+    list-style: none;
+    padding: 0;
+    width: 100%;
+}
+
+.list-group li {
+    background-color: #f4f4f4;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+}
+
+/* Fin pos.html*/
+@media screen and (max-width: 600px) {
+    .column {
+        width: 100%;
+    }
+    .card {
+        flex: 1 1 100%;
+    }
+
+}

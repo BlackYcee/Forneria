@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Enlace al archivo CSS usando el tag static -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <title>Forneria</title>
+</head>
+<body>
+    <!-- Contenedor principal -->
+    <div class="container">
+
+        <!-- Barra lateral de navegación -->
+        <nav class="navbar">
+            <img src="{% static 'images/logo.png' %}" alt="Logo">
+            <br>
+            <a href="#">Dashboard</a>
+            <a href="#">Ventas</a>
+            <a href="#">Inventario</a>
+            <a href="#">Pedidos</a>
+            <a href="#">Clientes</a>
+            <a href="#">Reportes</a>
+            <a href="#">Configuración</a>
+            <div class="fondo">
+                <h5>Colo Colo inc</h5>
+            </div>
+        </nav>
+
+        <!-- Sección central -->
+        {% block content %}
+        {% endblock %}
+    </div>
+</body>
+</html>
