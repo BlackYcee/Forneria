@@ -1,4 +1,6 @@
-html, body {
+/* --- Reset y base --- */
+html,
+body {
     margin: 0;
     font-family: 'Segoe UI', Arial, sans-serif;
     background-color: #e9ecef;
@@ -6,8 +8,7 @@ html, body {
     min-height: 100vh;
 }
 
-
-
+/* --- Navbar lateral --- */
 .navbar {
     display: flex;
     flex-direction: column;
@@ -17,8 +18,6 @@ html, body {
     box-shadow: 2px 0 6px rgba(0, 0, 0, 0.1);
 }
 
-
-
 .navbar-title {
     color: #fff;
     text-align: center;
@@ -27,8 +26,6 @@ html, body {
     font-weight: bold;
 }
 
-
-
 .navbar a {
     color: white;
     padding: 12px 20px;
@@ -36,43 +33,43 @@ html, body {
     transition: all 0.3s ease;
 }
 
-
-
 .navbar a:hover {
     background-color: #f5f5f5;
     color: rgb(0, 58, 79);
     border-radius: 4px;
 }
 
+/* --- Layout principal --- */
+.container {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+}
 
-/*css para pos.html*/
+.center {
+    flex: 3;
+    padding: 20px;
+    background-image: url("PHOTO.jpg");
+    background-size: cover;
+    background-position: center;
+}
+
+.side {
+    flex: 1;
+    padding: 10px;
+    background-color: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* --- Footer o fondo --- */
 .fondo {
-    margin-top: auto; 
+    margin-top: auto;
     text-align: center;
     padding: 15px;
     color: white;
 }
 
-.container {
-    display: flex;
-    flex-direction: row;
-    height: 100vh;;
-
-}
-
-.center {
-    padding: 20px;
-    flex: 3;
-    background-image: url(PHOTO.jpg);
-}
-
-.side {
-    padding: 20px;
-    flex: 1;
-    background-color: #fff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
+/* --- Opciones de búsqueda y filtros --- */
 .containeropciones {
     display: flex;
     justify-content: space-between;
@@ -86,7 +83,12 @@ html, body {
     gap: 15px;
 }
 
-/* Buscador */
+.search {
+    display: flex;
+    align-items: center;
+    margin-right: 20px;
+}
+
 .search form {
     display: flex;
     align-items: center;
@@ -107,20 +109,9 @@ html, body {
     outline: none;
 }
 
-/* Botones */
+/* --- Botones --- */
 .btn-search,
-.btn-scan {
-    border: none;
-    padding: 10px;
-    border-radius: 6px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-}
-
+.btn-scan,
 .btn-filter {
     border: none;
     padding: 10px;
@@ -151,7 +142,19 @@ html, body {
     background-color: #1e7e34;
 }
 
-/* Select categorías */
+.button1 {
+    border: none;
+    color: white;
+    padding: 7px 16px;
+    text-align: center;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    background-color: rgb(255, 59, 59);
+    border-radius: 8px;
+}
+
+/* --- Select categorías --- */
 .filter select {
     padding: 10px 12px;
     border: 1px solid #ccc;
@@ -167,13 +170,13 @@ html, body {
     outline: none;
 }
 
+/* --- Tarjetas de productos --- */
 .containercartas {
     background-color: #f5f5f5;
     padding: 20px;
     margin: 20px 0;
     border-radius: 10px;
     display: flex;
-    flex-direction: row;
     flex-wrap: wrap;
     gap: 10px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
@@ -187,48 +190,27 @@ html, body {
     padding: 15px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-
 }
 
 .card:hover {
     transform: translateY(-5px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-
 }
 
-.button1 { border: none;
-    color: white;
-    padding: 7px 16px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    margin: 4px 2px;
-    cursor: pointer;
-    background-color: rgb(255, 59, 59);
-    border-radius: 10%;
-} /* Blue */
-
-.search {
-
-    display: flex;
-    align-items: center;
-    margin-right: 20px;
-
-}
-
-.containerusuario{
-    background-color: #f5f5f5;
-    padding: 20px;
-    margin: 20px 0;
+/* --- Contenedores laterales --- */
+.containerusuario,
+.containercarrito {
+    background-color: #830000;
+    padding: 10px;
+    margin: 10px 0;
     border-radius: 10px;
     display: flex;
-    flex-direction: row;
     flex-wrap: wrap;
-    gap: 20px;
+    gap: 10px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
+/* --- Listas --- */
 .list-group {
     list-style: none;
     padding: 0;
@@ -241,13 +223,9 @@ html, body {
     border-top: 1px solid #ddd;
 }
 
-/* Fin pos.html*/
+/* --- Responsive --- */
 @media screen and (max-width: 600px) {
-    .column {
-        width: 100%;
-    }
     .card {
         flex: 1 1 100%;
     }
-
 }

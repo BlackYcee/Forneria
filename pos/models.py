@@ -26,21 +26,29 @@ class Producto(models.Model):
     descripcion = models.CharField(max_length=300, null=True, blank=True)
     marca = models.CharField(max_length=100, null=True, blank=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
-    caducidad = models.DateField()
-    elaboracion = models.DateField(null=True, blank=True)
     tipo = models.CharField(max_length=100, null=True, blank=True)
-    stock_actual = models.IntegerField(null=True, blank=True)
-    stock_minimo = models.IntegerField(null=True, blank=True)
-    stock_maximo = models.IntegerField(null=True, blank=True)
     presentacion = models.CharField(max_length=100, null=True, blank=True)
     formato = models.CharField(max_length=100, null=True, blank=True)
-    creado = models.DateTimeField(null=True, blank=True)
-    modificado = models.DateTimeField(null=True, blank=True)
-    eliminado = models.DateTimeField(null=True, blank=True)
     categoria = models.ForeignKey(Categoria, on_delete=models.DO_NOTHING)
     
     def __str__(self):
         return self.nombre
+
+class Lote(models.Model):
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name="lotes")
+    numero_lote = models.CharField(max_length=50, null=True, blank=True)
+    fecha_elaboracion = models.DateField(null=True, blank=True)
+    fecha_caducidad = models.DateField()
+    stock_actual = models.IntegerField(default=0)
+    stock_minimo = models.IntegerField(null=True, blank=True)
+    stock_maximo = models.IntegerField(null=True, blank=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    modificado = models.DateTimeField(auto_now=True)
+    eliminado = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Lote {self.numero_lote or self.id} - {self.producto.nombre}"
+
 
 
 # Alertas sobre productos

@@ -6,6 +6,7 @@ from . import views
 router=routers.DefaultRouter()
 router.register(r'categorias', views.CategoriaViewSet)
 router.register(r'nutricionales', views.NutricionalViewSet)
+router.register(r'lotes', views.LoteViewSet)
 router.register(r'productos', views.ProductoViewSet)
 router.register(r'alertas', views.AlertaViewSet)
 router.register(r'clientes', views.ClienteViewSet)

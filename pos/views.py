@@ -15,6 +15,10 @@ class NutricionalViewSet(viewsets.ModelViewSet):
     queryset = Nutricional.objects.all()
     serializer_class = NutricionalSerializer
 
+class LoteViewSet(viewsets.ModelViewSet):
+    queryset = Lote.objects.all()
+    serializer_class = LoteSerializer
+    
 class ProductoViewSet(viewsets.ModelViewSet):
     queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
@@ -48,9 +52,8 @@ class TurnoViewSet(viewsets.ModelViewSet):
     serializer_class = TurnoSerializer
     
     
-#vistas de la app de POS
 def inicio(request):
-    # Traer productos y categorías desde tu API
+    # Traer productos y categorías desde las API
     productos = requests.get("http://127.0.0.1:8000/pos/productos/").json()
     categorias = requests.get("http://127.0.0.1:8000/pos/categorias/").json()
 
@@ -61,14 +64,15 @@ def inicio(request):
     if buscar:
         productos = [
             p for p in productos
-            if buscar.lower() in p["nombre"].lower()
+            if buscar.lower() in p.get("nombre", "").lower()
             or str(p.get("codigo_barra", "")).startswith(buscar)
         ]
 
     if categoria_filtro:
         productos = [
             p for p in productos
-            if str(p["categoria"]) == categoria_filtro
+            if str(p.get("categoria") if isinstance(p.get("categoria"), int)
+                   else p.get("categoria", {}).get("id")) == categoria_filtro
         ]
 
     # Paginación: 8 productos por página

@@ -38,53 +38,47 @@ class NutricionalSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Las sodio no pueden ser 0")
         return value
 
-class ProductoSerializer(serializers.ModelSerializer):
-    nutricional = NutricionalSerializer(read_only=True)
+# --- Lote Serializer ---
+class LoteSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Producto
+        model = Lote
         fields = [
-            'id', 'codigo_barra','nombre', 'descripcion', 'marca', 'precio',
-            'caducidad', 'elaboracion', 'tipo',
-            'stock_actual', 'stock_minimo', 'stock_maximo',
-            'presentacion', 'formato',
-            'creado', 'modificado', 'eliminado',
-            'categoria', 'nutricional'
+            'id',
+            'numero_lote',
+            'fecha_elaboracion',
+            'fecha_caducidad',
+            'stock_actual',
+            'stock_minimo',
+            'stock_maximo',
         ]
-         # Validación de precio
-    def validate_precio(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("El precio debe ser mayor a 0.")
-        return value
 
-    # Validación de stock_actual
-    def validate_stock_actual(self, value):
-        if value is not None and value < 0:
-            raise serializers.ValidationError("El stock actual no puede ser negativo.")
-        return value
-
-    # Validación de stock_minimo
-    def validate_stock_minimo(self, value):
-        if value is not None and value < 0:
-            raise serializers.ValidationError("El stock mínimo no puede ser negativo.")
-        return value
-
-    # Validación de stock_maximo
-    def validate_stock_maximo(self, value):
-        if value is not None and value < 0:
-            raise serializers.ValidationError("El stock máximo no puede ser negativo.")
-        return value
-
-    # Validaciones cruzadas
     def validate(self, data):
-        # Caducidad debe ser posterior a la fecha de elaboración
-        if data.get("elaboracion") and data.get("caducidad"):
-            if data["caducidad"] <= data["elaboracion"]:
+        # Validación de fechas
+        if data.get("fecha_elaboracion") and data.get("fecha_caducidad"):
+            if data["fecha_caducidad"] <= data["fecha_elaboracion"]:
                 raise serializers.ValidationError({
-                    "caducidad": "La fecha de caducidad debe ser posterior a la fecha de elaboración."
+                    "fecha_caducidad": "La fecha de caducidad debe ser posterior a la fecha de elaboración."
                 })
 
-        # Stock actual debe estar entre mínimo y máximo
-        if data.get("stock_minimo") and data.get("stock_maximo") and data.get("stock_actual") is not None:
+        # Validación de stock
+        if data.get("stock_actual") is not None and data["stock_actual"] < 0:
+            raise serializers.ValidationError({
+                "stock_actual": "El stock actual no puede ser negativo."
+            })
+        if data.get("stock_minimo") is not None and data["stock_minimo"] < 0:
+            raise serializers.ValidationError({
+                "stock_minimo": "El stock mínimo no puede ser negativo."
+            })
+        if data.get("stock_maximo") is not None and data["stock_maximo"] < 0:
+            raise serializers.ValidationError({
+                "stock_maximo": "El stock máximo no puede ser negativo."
+            })
+
+        if (
+            data.get("stock_minimo") is not None
+            and data.get("stock_maximo") is not None
+            and data.get("stock_actual") is not None
+        ):
             if data["stock_minimo"] > data["stock_maximo"]:
                 raise serializers.ValidationError({
                     "stock_minimo": "El stock mínimo no puede ser mayor que el stock máximo."
@@ -94,13 +88,57 @@ class ProductoSerializer(serializers.ModelSerializer):
                     "stock_actual": "El stock actual debe estar entre el mínimo y el máximo definidos."
                 })
 
-        # Caducidad no puede ser en el pasado
-        if data.get("caducidad") and data["caducidad"] < date.today():
+        # Validación de caducidad en el pasado
+        if data.get("fecha_caducidad") and data["fecha_caducidad"] < date.today():
             raise serializers.ValidationError({
-                "caducidad": "La fecha de caducidad no puede estar en el pasado."
+                "fecha_caducidad": "La fecha de caducidad no puede estar en el pasado."
             })
 
         return data
+
+
+# --- Producto Serializer ---
+class ProductoSerializer(serializers.ModelSerializer):
+    nutricional = NutricionalSerializer(read_only=True)
+    lotes = LoteSerializer(many=True, required=False)
+    stock_total = serializers.SerializerMethodField() 
+
+    class Meta:
+        model = Producto
+        fields = '__all__'  
+
+    def get_stock_total(self, obj):
+        return sum(lote.stock_actual for lote in obj.lotes.all())
+
+    def validate_precio(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("El precio debe ser mayor a 0.")
+        return value
+
+    def create(self, validated_data):
+        lotes_data = validated_data.pop('lotes', [])
+        producto = Producto.objects.create(**validated_data)
+        for lote_data in lotes_data:
+            Lote.objects.create(producto=producto, **lote_data)
+        return producto
+
+    def update(self, instance, validated_data):
+        lotes_data = validated_data.pop('lotes', None)
+
+        # Actualizar campos del producto
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Si se envían lotes, actualizamos
+        if lotes_data is not None:
+            # Estrategia simple: borrar y recrear lotes
+            instance.lotes.all().delete()
+            for lote_data in lotes_data:
+                Lote.objects.create(producto=instance, **lote_data)
+
+        return instance  
+
 
 class AlertaSerializer(serializers.ModelSerializer):
     class Meta:
