@@ -122,6 +122,7 @@ class Pago(models.Model):
 
     def __str__(self):
         return f"Pago {self.monto} ({self.get_metodo_display()})"
+    
 
 # Movimiento de inventario
 class MovimientoInventario(models.Model):
