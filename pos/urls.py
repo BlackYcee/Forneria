@@ -19,6 +19,7 @@ router.register(r'empleados', views.EmpleadoViewSet)
 router.register(r'turnos', views.TurnoViewSet)
 
 urlpatterns = [
+    path('checkout/', views.checkout, name='checkout'),
     path('', include(router.urls)),
     path("sistema/", views.inicio, name='inicio')
 ]
