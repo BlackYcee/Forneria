@@ -48,9 +48,10 @@ class VentaViewSet(viewsets.ModelViewSet):
 
 
 
-class PagoViewSet(viewsets.ModelViewSet):
-    queryset = Pago.objects.all()
-    serializer_class = PagoSerializer
+# TEMPORALMENTE COMENTADO - Modelo Pago no existe
+# class PagoViewSet(viewsets.ModelViewSet):
+#     queryset = Pago.objects.all()
+#     serializer_class = PagoSerializer
 
 class DetalleVentaViewSet(viewsets.ModelViewSet):
     queryset = DetalleVenta.objects.all()

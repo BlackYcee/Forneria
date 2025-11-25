@@ -12,7 +12,7 @@ router.register(r'productos', views.ProductoViewSet)
 router.register(r'alertas', views.AlertaViewSet)
 router.register(r'clientes', views.ClienteViewSet)
 router.register(r'ventas', views.VentaViewSet)
-router.register(r'pagos', views.PagoViewSet)
+# router.register(r'pagos', views.PagoViewSet)  # COMENTADO - Modelo Pago no existe
 router.register(r'detalle-ventas', views.DetalleVentaViewSet)
 router.register(r'movimientos-inventario', views.MovimientoInventarioViewSet)
 router.register(r'empleados', views.EmpleadoViewSet)

@@ -1,0 +1,866 @@
+{% extends 'basepos.html' %}
+{% load static %}
+{% load analytics_extras %}
+
+{% block content %}
+<div class="py-4">
+    <!-- Header con filtros y botones de acción -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2 mb-0">Dashboard Financiero</h1>
+        <div class="d-flex gap-2 align-items-center">
+            <small class="text-muted me-2">Última actualización: <span id="ultimo-update">{{ fecha_actual }}</span></small>
+            <button class="btn btn-sm btn-primary" id="btn-refresh" title="Actualizar datos">
+                <i class="bi bi-arrow-clockwise"></i> Actualizar
+            </button>
+            <div class="dropdown">
+                <button class="btn btn-sm btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-download"></i> Exportar
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" id="export-excel"><i class="bi bi-file-earmark-excel"></i> Excel</a></li>
+                    <li><a class="dropdown-item" href="#" id="export-csv"><i class="bi bi-file-earmark-text"></i> CSV</a></li>
+                    <li><a class="dropdown-item" href="#" id="export-pdf"><i class="bi bi-file-earmark-pdf"></i> PDF</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alertas Automáticas -->
+    {% if alertas %}
+    <div id="alertas-container" class="mb-4">
+        {% for alerta in alertas %}
+        <div class="alert alert-{{ alerta.tipo }} alert-dismissible fade show" role="alert">
+            <strong>{{ alerta.titulo }}:</strong> {{ alerta.mensaje }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Filtros de Fecha -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="filtro-fechas" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Fecha Inicio</label>
+                    <input type="date" class="form-control" name="fecha_inicio" id="fecha_inicio" value="{{ fecha_inicio }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Fecha Fin</label>
+                    <input type="date" class="form-control" name="fecha_fin" id="fecha_fin" value="{{ fecha_fin }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">Aplicar Filtros</button>
+                    <button type="button" class="btn btn-secondary" id="btn-reset-filtros">Resetear</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bootstrap Tabs: Métricas vs Gráficos -->
+    <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="metricas-tab" data-bs-toggle="tab" data-bs-target="#metricas-content" type="button">
+                <i class="bi bi-graph-up"></i> Métricas y KPIs
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="graficos-tab" data-bs-toggle="tab" data-bs-target="#graficos-content" type="button">
+                <i class="bi bi-bar-chart-line"></i> Gráficos e Insights
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="dashboardTabsContent">
+        <!-- ===================== TAB 1: MÉTRICAS Y KPIs ===================== -->
+        <div class="tab-pane fade show active" id="metricas-content" role="tabpanel">
+
+            <!-- KPIs del Día -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card border-primary">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Ventas Hoy</h6>
+                            <h3 class="card-title mb-1">${{ kpis.hoy.total|floatformat:0 }}</h3>
+                            <small class="text-muted">{{ kpis.hoy.cantidad }} transacciones</small>
+                            {% if kpis.variacion_pct > 0 %}
+                                <p class="mb-0 mt-2"><span class="badge bg-success">↑ {{ kpis.variacion_pct|floatformat:1 }}%</span></p>
+                            {% elif kpis.variacion_pct < 0 %}
+                                <p class="mb-0 mt-2"><span class="badge bg-danger">↓ {{ kpis.variacion_pct|floatformat:1 }}%</span></p>
+                            {% else %}
+                                <p class="mb-0 mt-2"><span class="badge bg-secondary">{{ kpis.variacion_pct|floatformat:1 }}%</span></p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Ventas Periodo</h6>
+                            <h3 class="card-title mb-1">${{ resumen.total_ventas|floatformat:0 }}</h3>
+                            <small class="text-muted">{{ resumen.cantidad_transacciones }} ventas</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="card border-info">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Ticket Promedio</h6>
+                            <h3 class="card-title mb-1">${{ resumen.ticket_promedio|floatformat:0 }}</h3>
+                            <small class="text-muted">Por transacción</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Margen Descuento</h6>
+                            <h3 class="card-title mb-1">{{ metricas_avanzadas.margen_descuento_pct|floatformat:1 }}%</h3>
+                            <small class="text-muted">${{ metricas_avanzadas.total_descuentos|floatformat:0 }} total</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Métricas Financieras Avanzadas -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Desglose Financiero</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <td>Ventas Brutas:</td>
+                                        <td class="text-end"><strong>${{ metricas_avanzadas.ventas_brutas|floatformat:2 }}</strong></td>
+                                    </tr>
+                                    <tr class="text-danger">
+                                        <td>Descuentos aplicados:</td>
+                                        <td class="text-end">- ${{ metricas_avanzadas.total_descuentos|floatformat:2 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Ventas Netas (sin IVA):</td>
+                                        <td class="text-end"><strong>${{ metricas_avanzadas.ventas_netas|floatformat:2 }}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td>IVA (19%):</td>
+                                        <td class="text-end"><strong>${{ metricas_avanzadas.total_iva|floatformat:2 }}</strong></td>
+                                    </tr>
+                                    <tr class="table-active">
+                                        <td><strong>Total con IVA:</strong></td>
+                                        <td class="text-end"><strong class="text-success">${{ resumen.total_ventas|floatformat:2 }}</strong></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Ticket Promedio por Canal</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if ticket_segmentado.por_canal %}
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Canal</th>
+                                            <th class="text-end">Ticket Prom.</th>
+                                            <th class="text-end">Cantidad</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for canal in ticket_segmentado.por_canal %}
+                                        <tr>
+                                            <td>
+                                                {% if canal.canal == 'presencial' %}
+                                                    <i class="bi bi-shop"></i> Presencial
+                                                {% else %}
+                                                    <i class="bi bi-truck"></i> Delivery
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end"><strong>${{ canal.ticket_promedio|floatformat:0 }}</strong></td>
+                                            <td class="text-end">{{ canal.cantidad }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            {% else %}
+                                <p class="text-muted">No hay datos disponibles</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clientes Nuevos vs Recurrentes -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Clientes Nuevos vs Recurrentes</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-6 border-end">
+                                    <h4 class="text-success">{{ clientes_nuevos.nuevos.cantidad }}</h4>
+                                    <p class="text-muted mb-0">Nuevos</p>
+                                    <small>${{ clientes_nuevos.nuevos.total_ventas|floatformat:0 }}</small>
+                                </div>
+                                <div class="col-6">
+                                    <h4 class="text-primary">{{ clientes_nuevos.recurrentes.cantidad }}</h4>
+                                    <p class="text-muted mb-0">Recurrentes</p>
+                                    <small>${{ clientes_nuevos.recurrentes.total_ventas|floatformat:0 }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Top 5 Clientes</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if clientes_top %}
+                                <table class="table table-sm mb-0">
+                                    <tbody>
+                                        {% for cliente in clientes_top %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ cliente.nombre|truncatechars:20 }}</strong><br>
+                                                <small class="text-muted">{{ cliente.rut }}</small>
+                                            </td>
+                                            <td class="text-end">
+                                                <strong>${{ cliente.total_compras|floatformat:0 }}</strong><br>
+                                                <small class="text-muted">{{ cliente.num_compras }} compras</small>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            {% else %}
+                                <p class="text-muted mb-0">No hay datos de clientes</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Productos -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Top 10 Productos Más Vendidos</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if productos_top %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Producto</th>
+                                                <th>Categoría</th>
+                                                <th class="text-end">Cantidad</th>
+                                                <th class="text-end">Ingresos</th>
+                                                <th class="text-end">Transacciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for producto in productos_top %}
+                                            <tr>
+                                                <td>{{ forloop.counter }}</td>
+                                                <td><strong>{{ producto.nombre }}</strong></td>
+                                                <td><span class="badge bg-secondary">{{ producto.categoria|default:"Sin categoría" }}</span></td>
+                                                <td class="text-end">{{ producto.cantidad_vendida }}</td>
+                                                <td class="text-end text-success"><strong>${{ producto.ingresos|floatformat:0 }}</strong></td>
+                                                <td class="text-end">{{ producto.transacciones }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted mb-0">No hay productos vendidos en este periodo</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== TAB 2: GRÁFICOS E INSIGHTS ===================== -->
+        <div class="tab-pane fade" id="graficos-content" role="tabpanel">
+
+            <!-- Gráfico: Ventas Diarias con Proyección -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Ventas Diarias + Proyección (7 días)</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="ventasDiariasProyeccionChart" height="80"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico: Comparativa MoM y Ventas por Día de Semana -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Comparativa Mensual (MoM)</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="comparativaMomChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Ventas por Día de Semana</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="ventasDiaSemanaChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico: Dual Ventas vs Utilidad Neta -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Ventas Netas vs IVA (Dual: Barras + Línea)</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="ventasNetasIvaChart" height="100"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráficos de Distribución (Donut) -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Ventas por Canal</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="ventasCanalDonutChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Ventas por Categoría</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="ventasCategoriasDonutChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Clientes Nuevos vs Recurrentes</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="clientesNuevosDonutChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ventas por Hora -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Ventas por Hora del Día</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="ventasPorHoraChart" height="80"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js y Bootstrap Icons-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+// ===================== CONFIGURACIÓN GLOBAL =====================
+const colors = {
+    primary: '#0d6efd',
+    success: '#198754',
+    danger: '#dc3545',
+    warning: '#ffc107',
+    info: '#0dcaf0',
+    purple: '#6f42c1',
+    orange: '#fd7e14',
+    teal: '#20c997',
+    pink: '#d63384'
+};
+
+const chartColors = [
+    colors.primary, colors.success, colors.warning, colors.info,
+    colors.purple, colors.orange, colors.teal, colors.pink,
+    colors.danger, '#6c757d'
+];
+
+// ===================== FUNCIONES DE UTILIDAD =====================
+function formatCurrency(value) {
+    return '$' + Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+// ===================== ESPERAR A QUE EL DOM ESTÉ LISTO =====================
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM cargado, inicializando dashboard...');
+
+    // ===================== AUTO-REFRESH CON AJAX =====================
+    let autoRefreshInterval = null;
+
+    function enableAutoRefresh(intervalMinutes = 5) {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+        }
+
+        autoRefreshInterval = setInterval(() => {
+            console.log('Auto-refreshing dashboard...');
+            location.reload();
+        }, intervalMinutes * 60 * 1000);
+    }
+
+    // Activar auto-refresh cada 5 minutos
+    enableAutoRefresh(5);
+
+    // ===================== BOTÓN MANUAL DE REFRESH =====================
+    const btnRefresh = document.getElementById('btn-refresh');
+    if (btnRefresh) {
+        btnRefresh.addEventListener('click', function() {
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Actualizando...';
+            this.disabled = true;
+            location.reload();
+        });
+    }
+
+    // ===================== FILTROS DE FECHA =====================
+    const filtroFechas = document.getElementById('filtro-fechas');
+    if (filtroFechas) {
+        filtroFechas.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fechaInicio = document.getElementById('fecha_inicio').value;
+            const fechaFin = document.getElementById('fecha_fin').value;
+
+            let url = window.location.pathname;
+            const params = new URLSearchParams();
+            if (fechaInicio) params.append('fecha_inicio', fechaInicio);
+            if (fechaFin) params.append('fecha_fin', fechaFin);
+
+            window.location.href = url + '?' + params.toString();
+        });
+    }
+
+    const btnResetFiltros = document.getElementById('btn-reset-filtros');
+    if (btnResetFiltros) {
+        btnResetFiltros.addEventListener('click', function() {
+            window.location.href = window.location.pathname;
+        });
+    }
+
+    // ===================== EXPORTACIÓN =====================
+    const exportExcel = document.getElementById('export-excel');
+    if (exportExcel) {
+        exportExcel.addEventListener('click', function(e) {
+            e.preventDefault();
+            const params = new URLSearchParams(window.location.search);
+            window.location.href = '/analytics/finanzas/exportar/excel/?' + params.toString();
+        });
+    }
+
+    const exportCsv = document.getElementById('export-csv');
+    if (exportCsv) {
+        exportCsv.addEventListener('click', function(e) {
+            e.preventDefault();
+            const params = new URLSearchParams(window.location.search);
+            window.location.href = '/analytics/finanzas/exportar/csv/?' + params.toString();
+        });
+    }
+
+    const exportPdf = document.getElementById('export-pdf');
+    if (exportPdf) {
+        exportPdf.addEventListener('click', function(e) {
+            e.preventDefault();
+            const params = new URLSearchParams(window.location.search);
+            window.location.href = '/analytics/finanzas/exportar/pdf/?' + params.toString();
+        });
+    }
+
+    // ===================== DATOS DE DJANGO =====================
+    console.log('Inicializando datos del dashboard...');
+
+    // Parse JSON data from Django view (safer than template loops)
+    const ventasDiarias = JSON.parse('{{ ventas_diarias_json|safe }}');
+    console.log('ventasDiarias:', ventasDiarias);
+
+    const proyeccionData = JSON.parse('{{ proyeccion_json|safe }}');
+    const proyeccionVentas = {
+        labels: proyeccionData.proyecciones.map(p => p.fecha),
+        valores: proyeccionData.proyecciones.map(p => p.proyeccion)
+    };
+
+    const momRaw = JSON.parse('{{ mom_json|safe }}');
+    const momData = {
+        labels: momRaw.map(m => m.mes),
+        totales: momRaw.map(m => m.total),
+        variaciones: momRaw.map(m => m.variacion_mom)
+    };
+
+    const ventasDiaSemana = JSON.parse('{{ ventas_dia_semana_json|safe }}');
+
+    const ventasCanalRaw = JSON.parse('{{ ventas_canal_json|safe }}');
+    const ventasCanal = {
+        labels: ventasCanalRaw.map(c => c.canal.charAt(0).toUpperCase() + c.canal.slice(1)),
+        totales: ventasCanalRaw.map(c => c.total)
+    };
+
+    const ventasCategorias = JSON.parse('{{ categorias_json|safe }}');
+
+    const clientesNuevos = JSON.parse('{{ clientes_nuevos_json|safe }}');
+
+    const ventasHora = JSON.parse('{{ ventas_hora_json|safe }}');
+
+    // ===================== GRÁFICO 1: VENTAS DIARIAS + PROYECCIÓN =====================
+    if (ventasDiarias.labels.length > 0) {
+        const ventasProyeccionCtx = document.getElementById('ventasDiariasProyeccionChart').getContext('2d');
+
+    // Combinar labels
+    const allLabels = [...ventasDiarias.labels, ...proyeccionVentas.labels];
+
+    new Chart(ventasProyeccionCtx, {
+        type: 'line',
+        data: {
+            labels: allLabels,
+            datasets: [
+                {
+                    label: 'Ventas Reales',
+                    data: [...ventasDiarias.totales, ...Array(proyeccionVentas.valores.length).fill(null)],
+                    borderColor: colors.primary,
+                    backgroundColor: colors.primary + '30',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2
+                },
+                {
+                    label: 'Proyección',
+                    data: [...Array(ventasDiarias.totales.length).fill(null), ...proyeccionVentas.valores],
+                    borderColor: colors.warning,
+                    backgroundColor: 'transparent',
+                    borderDash: [5, 5],
+                    tension: 0.4,
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: true, position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: value => formatCurrency(value) }
+                }
+            }
+        }
+    });
+    }
+
+    // ===================== GRÁFICO 2: COMPARATIVA MoM =====================
+    if (momData.labels.length > 0) {
+        const momCtx = document.getElementById('comparativaMomChart').getContext('2d');
+        new Chart(momCtx, {
+        type: 'bar',
+        data: {
+            labels: momData.labels,
+            datasets: [{
+                label: 'Ventas Mensuales',
+                data: momData.totales,
+                backgroundColor: momData.variaciones.map(v => v > 0 ? colors.success : v < 0 ? colors.danger : colors.info),
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const idx = context.dataIndex;
+                            const variacion = momData.variaciones[idx];
+                            return [
+                                'Ventas: ' + formatCurrency(context.parsed.y),
+                                'Variación MoM: ' + variacion.toFixed(1) + '%'
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: value => formatCurrency(value) }
+                }
+            }
+        }
+    });
+    }
+
+    // ===================== GRÁFICO 3: VENTAS POR DÍA DE SEMANA =====================
+    if (ventasDiaSemana.labels.length > 0) {
+        const diaSemanaCtx = document.getElementById('ventasDiaSemanaChart').getContext('2d');
+        new Chart(diaSemanaCtx, {
+        type: 'bar',
+        data: {
+            labels: ventasDiaSemana.labels,
+            datasets: [{
+                label: 'Ventas por Día',
+                data: ventasDiaSemana.totales,
+                backgroundColor: colors.teal,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: context => formatCurrency(context.parsed.y)
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: value => formatCurrency(value) }
+                }
+            }
+        }
+    });
+    }
+
+    // ===================== GRÁFICO 4: DUAL VENTAS NETAS VS IVA =====================
+    if (ventasDiarias && ventasDiarias.labels && ventasDiarias.labels.length > 0 && ventasDiarias.totales && ventasDiarias.totales.length > 0) {
+        try {
+        const dualCtx = document.getElementById('ventasNetasIvaChart').getContext('2d');
+        new Chart(dualCtx, {
+            type: 'bar',
+            data: {
+                labels: ventasDiarias.labels,
+                datasets: [
+                    {
+                        type: 'bar',
+                        label: 'Ventas Netas (sin IVA)',
+                        data: ventasDiarias.totales.map(v => Number(v) / 1.19),
+                        backgroundColor: colors.success + '80',
+                        borderWidth: 0,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'line',
+                        label: 'IVA',
+                        data: ventasDiarias.totales.map(v => Number(v) * 0.19 / 1.19),
+                        borderColor: colors.warning,
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: context => context.dataset.label + ': ' + formatCurrency(context.parsed.y)
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: value => formatCurrency(value) }
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.error('Error creando gráfico dual:', e);
+    }
+    } else {
+    console.warn('No hay datos de ventas diarias para el gráfico dual');
+    }
+
+    // ===================== GRÁFICO 5: DONUT VENTAS POR CANAL =====================
+    if (ventasCanal.labels.length > 0) {
+        const canalDonutCtx = document.getElementById('ventasCanalDonutChart').getContext('2d');
+        new Chart(canalDonutCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ventasCanal.labels,
+            datasets: [{
+                data: ventasCanal.totales,
+                backgroundColor: [colors.success, colors.info]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: context => context.label + ': ' + formatCurrency(context.parsed)
+                    }
+                }
+            }
+        }
+    });
+    }
+
+    // ===================== GRÁFICO 6: DONUT CATEGORÍAS =====================
+    if (ventasCategorias.labels.length > 0) {
+        const categoriasDonutCtx = document.getElementById('ventasCategoriasDonutChart').getContext('2d');
+        new Chart(categoriasDonutCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ventasCategorias.labels,
+            datasets: [{
+                data: ventasCategorias.totales,
+                backgroundColor: chartColors
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: context => context.label + ': ' + formatCurrency(context.parsed)
+                    }
+                }
+            }
+        }
+    });
+    }
+
+    // ===================== GRÁFICO 7: DONUT CLIENTES NUEVOS VS RECURRENTES =====================
+    const clientesDonutCtx = document.getElementById('clientesNuevosDonutChart').getContext('2d');
+    new Chart(clientesDonutCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Nuevos', 'Recurrentes'],
+        datasets: [{
+            data: [clientesNuevos.nuevos, clientesNuevos.recurrentes],
+            backgroundColor: [colors.success, colors.primary]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const valores = [clientesNuevos.nuevos_ventas, clientesNuevos.recurrentes_ventas];
+                        return context.label + ': ' + context.parsed + ' clientes (' + formatCurrency(valores[context.dataIndex]) + ')';
+                    }
+                }
+            }
+        }
+    }
+    });
+
+    // ===================== GRÁFICO 8: VENTAS POR HORA =====================
+    if (ventasHora.labels.length > 0) {
+        const horaCtx = document.getElementById('ventasPorHoraChart').getContext('2d');
+        new Chart(horaCtx, {
+        type: 'bar',
+        data: {
+            labels: ventasHora.labels,
+            datasets: [{
+                label: 'Ventas por Hora',
+                data: ventasHora.totales,
+                backgroundColor: colors.orange,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: context => 'Ventas: ' + formatCurrency(context.parsed.y)
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: value => formatCurrency(value) }
+                }
+            }
+        }
+    });
+    }
+
+    console.log('Dashboard financiero cargado correctamente');
+}); // Fin de DOMContentLoaded
+</script>
+
+{% endblock %}
