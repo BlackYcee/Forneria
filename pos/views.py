@@ -9,8 +9,29 @@ from django.db import transaction
 from decimal import Decimal
 from django.utils import timezone
 from django.core.paginator import Paginator
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+import csv
 from .serializer import *
 from .models import *
+from .forms import ProductoForm, LoteForm
+from django.db.models import Sum, Avg, Count
+from django.db.models.functions import TruncDate, TruncMonth
+
+
+@api_view(['GET'])
+def server_time(request):
+    """Return current server time in ISO and a human formatted string (es-CL).
+
+    This endpoint is used by the POS frontend to show a server-based timestamp
+    when confirming a sale.
+    """
+    now = timezone.now()
+    try:
+        formatted = now.astimezone(timezone.get_current_timezone()).strftime('%d/%m/%Y %H:%M')
+    except Exception:
+        formatted = now.strftime('%Y-%m-%d %H:%M')
+    return Response({'now': now.isoformat(), 'formatted': formatted})
 
 # Nota: la vista `inicio` intentará usar ORM para obtener productos y categorías
 # (más rápido y seguro), y caerá de forma silenciosa al fallback HTTP a la API si
@@ -119,6 +140,230 @@ def inicio(request):
     })
 
 
+def landing(request):
+    """Landing pública: mostrar categorías y productos destacados."""
+    try:
+        categorias_qs = Categoria.objects.all()
+        # permitir filtrar por categoría via GET ?categorias=<id>
+        categoria_filtro = request.GET.get('categorias', '').strip()
+        productos_qs = Producto.objects.select_related('categoria').prefetch_related('lotes').all()
+        if categoria_filtro:
+            productos_qs = productos_qs.filter(categoria__id=categoria_filtro)
+        productos_qs = productos_qs[:24]
+
+        categorias = [{'id': c.id, 'nombre': c.nombre} for c in categorias_qs]
+        productos = []
+        for p in productos_qs:
+            productos.append({
+                'id': p.id,
+                'nombre': p.nombre,
+                'codigo_barra': p.codigo_barra,
+                'precio': float(p.precio) if p.precio is not None else 0,
+                'stock_total': p.stock_total(),
+                # pasar id y nombre de la categoría para permitir enlaces/filtrado en la plantilla
+                'categoria': {'id': p.categoria.id, 'nombre': p.categoria.nombre} if p.categoria else None,
+            })
+    except Exception:
+        # fallback seguro
+        categorias = []
+        productos = []
+
+    return render(request, 'landing.html', {'categorias': categorias, 'productos': productos, 'categoria_selected': categoria_filtro})
+
+
+def dashboard(request):
+    """Dashboard simple: totales por día y por mes para los últimos 60 días."""
+    # Totales por día (últimos 60 días)
+    from django.utils import timezone
+    hoy = timezone.now()
+    fecha_inicio = hoy - timezone.timedelta(days=60)
+
+    ventas_qs = Venta.objects.filter(fecha__gte=fecha_inicio)
+
+    por_dia = (
+        ventas_qs
+        .annotate(dia=TruncDate('fecha'))
+        .values('dia')
+        .annotate(total=Sum('total_con_iva'))
+        .order_by('dia')
+    )
+
+    por_mes = (
+        Venta.objects
+        .annotate(mes=TruncMonth('fecha'))
+        .values('mes')
+        .annotate(total=Sum('total_con_iva'))
+        .order_by('mes')
+    )
+
+    # Convertir QuerySets a listas serializables
+    dias = [ { 'dia': r['dia'].isoformat(), 'total': float(r['total'] or 0) } for r in por_dia ]
+    meses = [ { 'mes': r['mes'].date().isoformat(), 'total': float(r['total'] or 0) } for r in por_mes ]
+
+    # KPIs simples (últimos 30 días + hoy)
+    fecha_30 = hoy - timezone.timedelta(days=30)
+    ventas_30_qs = Venta.objects.filter(fecha__gte=fecha_30)
+
+    total_ingresos_30 = ventas_30_qs.aggregate(s=Sum('total_con_iva'))['s'] or 0
+    total_ventas_30 = ventas_30_qs.aggregate(c=Count('id'))['c'] or 0
+    promedio_venta_30 = ventas_30_qs.aggregate(a=Avg('total_con_iva'))['a'] or 0
+
+    ventas_hoy = Venta.objects.filter(fecha__date=hoy.date()).aggregate(c=Count('id'))['c'] or 0
+
+    kpis = {
+        'total_ingresos_30': float(total_ingresos_30),
+        'total_ventas_30': int(total_ventas_30),
+        'promedio_venta_30': float(promedio_venta_30),
+        'ventas_hoy': int(ventas_hoy),
+    }
+
+    return render(request, 'pos_dashboard.html', { 'dias': dias, 'meses': meses, 'kpis': kpis })
+
+
+def ventas_page(request):
+    """Página pública interna que lista las ventas recientes."""
+    # soportar filtros por cliente (rut o nombre) vía GET
+    rut = request.GET.get('rut', '').strip()
+    nombre = request.GET.get('nombre', '').strip()
+
+    qs = Venta.objects.select_related('cliente', 'empleado').order_by('-fecha')
+
+    if rut:
+        qs = qs.filter(cliente__rut__iexact=rut)
+    if nombre:
+        qs = qs.filter(cliente__nombre__icontains=nombre)
+
+    # Paginación
+    page_number = request.GET.get('page', 1)
+    paginator = Paginator(qs, 25)  # 25 ventas por página
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'pos_ventas.html', {'ventas': page_obj.object_list, 'page_obj': page_obj, 'filter_rut': rut, 'filter_nombre': nombre})
+
+
+def inventario_page(request):
+    """Lista simple de productos e información de stock."""
+    productos = Producto.objects.select_related('categoria').all()
+    # La plantilla de inventario ahora vive en la app `inventario` (inventario/templates/inventario/pos_inventario.html)
+    return render(request, 'inventario/pos_inventario.html', {'productos': productos})
+
+
+def producto_create(request):
+    if request.method == 'POST':
+        form = ProductoForm(request.POST)
+        if form.is_valid():
+            prod = form.save()
+            return render(request, 'inventario/pos_producto_form.html', {'form': form, 'saved': True, 'producto': prod})
+    else:
+        form = ProductoForm()
+    return render(request, 'inventario/pos_producto_form.html', {'form': form})
+
+
+def producto_edit(request, pk):
+    prod = get_object_or_404(Producto, pk=pk)
+    if request.method == 'POST':
+        form = ProductoForm(request.POST, instance=prod)
+        if form.is_valid():
+            prod = form.save()
+            return render(request, 'inventario/pos_producto_form.html', {'form': form, 'saved': True, 'producto': prod})
+    else:
+        form = ProductoForm(instance=prod)
+    return render(request, 'inventario/pos_producto_form.html', {'form': form, 'producto': prod})
+
+
+def producto_delete(request, pk):
+    prod = get_object_or_404(Producto, pk=pk)
+    if request.method == 'POST':
+        prod.delete()
+        return render(request, 'inventario/pos_producto_confirm_delete.html', {'deleted': True, 'nombre': prod.nombre})
+    return render(request, 'inventario/pos_producto_confirm_delete.html', {'producto': prod})
+
+
+def product_lotes(request, product_id):
+    producto = get_object_or_404(Producto, pk=product_id)
+    lotes = producto.lotes.all().order_by('-fecha_elaboracion')
+    return render(request, 'inventario/pos_lotes_list.html', {'producto': producto, 'lotes': lotes})
+
+
+def lote_create(request, product_id=None):
+    initial = {}
+    producto = None
+    if product_id:
+        producto = get_object_or_404(Producto, pk=product_id)
+        initial['producto'] = producto
+
+    if request.method == 'POST':
+        form = LoteForm(request.POST)
+        if form.is_valid():
+            lote = form.save()
+            return render(request, 'inventario/pos_lote_form.html', {'form': form, 'saved': True, 'lote': lote})
+    else:
+        form = LoteForm(initial=initial)
+    return render(request, 'inventario/pos_lote_form.html', {'form': form, 'producto': producto})
+
+
+def lote_edit(request, pk):
+    lote = get_object_or_404(Lote, pk=pk)
+    if request.method == 'POST':
+        form = LoteForm(request.POST, instance=lote)
+        if form.is_valid():
+            lote = form.save()
+            return render(request, 'inventario/pos_lote_form.html', {'form': form, 'saved': True, 'lote': lote})
+    else:
+        form = LoteForm(instance=lote)
+    return render(request, 'inventario/pos_lote_form.html', {'form': form, 'lote': lote})
+
+
+def lote_delete(request, pk):
+    lote = get_object_or_404(Lote, pk=pk)
+    if request.method == 'POST':
+        nombre = str(lote)
+        lote.delete()
+        return render(request, 'inventario/pos_lote_confirm_delete.html', {'deleted': True, 'nombre': nombre})
+    return render(request, 'inventario/pos_lote_confirm_delete.html', {'lote': lote})
+
+
+def clientes_page(request):
+    clientes = Cliente.objects.all().order_by('nombre')[:200]
+    return render(request, 'pos_clientes.html', {'clientes': clientes})
+
+
+def pedidos_page(request):
+    # No hay modelo Pedido en este app; mostrar placeholder y link a ventas
+    return render(request, 'pos_pedidos.html', {})
+
+
+def reportes_page(request):
+    # Reusar dashboard como punto de entrada a reportes
+    return dashboard(request)
+
+
+def cliente_detail(request, rut):
+    """Detalle de cliente: muestra información y compras paginadas. Soporta export CSV con ?export=csv"""
+    cliente = get_object_or_404(Cliente, rut=rut)
+
+    ventas_qs = Venta.objects.filter(cliente=cliente).order_by('-fecha')
+
+    # exportar CSV si se solicita
+    if request.GET.get('export') == 'csv':
+        # generar CSV de ventas básicas
+        response = HttpResponse(content_type='text/csv')
+        filename = f"ventas_{cliente.rut}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        writer = csv.writer(response)
+        writer.writerow(['folio', 'fecha', 'total_con_iva', 'monto_pagado', 'vuelto', 'canal_venta'])
+        for v in ventas_qs:
+            writer.writerow([v.folio, v.fecha.isoformat(), str(v.total_con_iva), str(v.monto_pagado or ''), str(v.vuelto or ''), v.canal_venta])
+        return response
+
+    # paginación de compras del cliente
+    page_number = request.GET.get('page', 1)
+    paginator = Paginator(ventas_qs, 20)
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'pos_cliente_detail.html', {'cliente': cliente, 'ventas': page_obj.object_list, 'page_obj': page_obj})
+
+
 @csrf_exempt
 @api_view(['POST'])
 def checkout(request):
@@ -146,6 +391,7 @@ def checkout(request):
     canal = data.get('canal_venta', 'presencial')
     cliente_rut = data.get('cliente_rut')
     monto_pagado = data.get('monto_pagado')
+    metodo_pago = data.get('metodo_pago')
 
     try:
         # calcular totales con Decimal
@@ -216,6 +462,15 @@ def checkout(request):
             # asignar folio simple
             venta.folio = f"V{venta.id:06d}"
             venta.save(update_fields=['folio'])
+
+            # Registrar pago asociado (si se envía método de pago)
+            try:
+                pago_monto = monto_pagado_dec if monto_pagado_dec is not None else total_con_iva
+                if metodo_pago:
+                    Pago.objects.create(venta=venta, monto=pago_monto, metodo=metodo_pago)
+            except Exception:
+                # No bloquear la venta si falla el registro del pago; loguear en futuro
+                pass
 
         resp = {
             'id': venta.id,
