@@ -57,6 +57,11 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
+            # Registrar templatetags comunes como builtins evita tener que
+            # hacer {% load currency %} en cada plantilla.
+            'builtins': [
+                'pos.templatetags.currency',
+            ],
         },
     },
 ]

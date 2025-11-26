@@ -1,0 +1,34 @@
+{% extends 'base_landing.html' %}
+{% load static %}
+{% load currency %}
+
+{% block content %}
+  <h1 style="margin-bottom:8px;">Nuestros Productos</h1>
+  <p style="color:#666; margin-bottom:18px;">Explora nuestras categorías y descubre sabores artesanales.</p>
+
+  <div class="category-list">
+    <a class="category-item {% if not categoria_selected %}active{% endif %}" href="?">Todas</a>
+    {% for c in categorias %}
+      <a class="category-item {% if categoria_selected and categoria_selected == c.id|stringformat:"s" %}active{% endif %}" href="?categorias={{ c.id }}">{{ c.nombre }}</a>
+    {% empty %}
+      <div class="category-item">Sin categorías</div>
+    {% endfor %}
+  </div>
+
+  <div class="containercartas">
+    {% for p in productos %}
+      <div class="card">
+        <h3 style="margin:0 0 6px 0;">{{ p.nombre }}</h3>
+  <p style="margin:0; color:#666;">{% if p.categoria %}{{ p.categoria.nombre }}{% endif %}</p>
+        <p style="margin-top:8px; font-weight:700; color:#1f3a93;">{{ p.precio|floatformat:0|clp }}</p>
+        <div style="margin-top:8px; display:flex; gap:8px;">
+          <a class="button1" href="/pos/sistema/">Comprar</a>
+          <a class="btn-secondary" href="/pos/sistema/">Ver</a>
+        </div>
+      </div>
+    {% empty %}
+      <p>No hay productos disponibles</p>
+    {% endfor %}
+  </div>
+
+{% endblock %}

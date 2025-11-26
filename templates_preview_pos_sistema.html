@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Enlace al archivo CSS usando el tag static -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <title>Forneria</title>
+</head>
+<body>
+    <!-- Contenedor principal -->
+    <div class="container">
+
+        <!-- Barra lateral de navegación -->
+        <nav class="navbar">
+            <img src="/static/images/logo.png" alt="Logo">
+            <br>
+            <a href="#">Dashboard</a>
+            <a href="#">Ventas</a>
+            <a href="#">Inventario</a>
+            <a href="#">Pedidos</a>
+            <a href="#">Clientes</a>
+            <a href="#">Reportes</a>
+            <a href="#">Configuración</a>
+            <div class="fondo">
+                <h5>Colo Colo inc</h5>
+            </div>
+        </nav>
+
+        <!-- Sección central -->
+        
+<link rel="stylesheet" href="/static/css/style.css">
+<!-- Estilos específicos para POS -->
+<link rel="stylesheet" href="/static/css/pos.css">
+<div class="center">
+    <h1 style="font-size: 2rem; color:#fff; margin-top: 0;">Punto de venta</h1>
+
+    <!-- Opciones de búsqueda y filtro -->
+    <div class="containeropciones">
+        <div class="search">
+            <form action="" method="GET">
+                <input type="text" placeholder="Nombre o Código" name="buscar">
+                <button type="submit" class="btn-search">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+                <button type="button" class="btn-scan">
+                    <i class="fas fa-barcode"></i> Escanear
+                </button>
+            </form>
+        </div>
+
+        <!-- Filtro dinámico de categorías -->
+        <div class="filter">
+            <select name="categorias" id="categorias" onchange="this.form.submit()">
+                <option value="" disabled selected>Seleccionar categoría</option>
+                
+                    <option value="1">Panadería</option>
+                
+                    <option value="2">Empanadas</option>
+                
+                    <option value="3">Pastelería</option>
+                
+                    <option value="4">Cafetería</option>
+                
+                    <option value="5">Congelados</option>
+                
+            </select>
+        </div>
+    </div>
+
+    <!-- Tarjetas de productos -->
+    <div class="containercartas">
+        
+            <div class="card" data-id="1" data-nombre="Pan de campo" data-precio="1200">
+                <div class="w3-container w3-center">
+                    <h2>Pan de campo</h2>
+                    <p>Código de barra: None</p>
+                    <p>Stock disponible: <strong>30</strong></p>
+                        <p>Precio: <strong>$1.200</strong></p>
+                    <div class="card-actions">
+                            <button class="button1 add-to-cart" data-id="1" data-nombre="Pan de campo" data-precio="1200">Agregar al carrito</button>
+                        <button class="button1 view-detail" data-id="1">Ver detalle</button>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="card" data-id="2" data-nombre="Pancito crujiente" data-precio="400">
+                <div class="w3-container w3-center">
+                    <h2>Pancito crujiente</h2>
+                    <p>Código de barra: None</p>
+                    <p>Stock disponible: <strong>50</strong></p>
+                        <p>Precio: <strong>$400</strong></p>
+                    <div class="card-actions">
+                            <button class="button1 add-to-cart" data-id="2" data-nombre="Pancito crujiente" data-precio="400">Agregar al carrito</button>
+                        <button class="button1 view-detail" data-id="2">Ver detalle</button>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="card" data-id="3" data-nombre="Empanada de horno (carne)" data-precio="900">
+                <div class="w3-container w3-center">
+                    <h2>Empanada de horno (carne)</h2>
+                    <p>Código de barra: None</p>
+                    <p>Stock disponible: <strong>40</strong></p>
+                        <p>Precio: <strong>$900</strong></p>
+                    <div class="card-actions">
+                            <button class="button1 add-to-cart" data-id="3" data-nombre="Empanada de horno (carne)" data-precio="900">Agregar al carrito</button>
+                        <button class="button1 view-detail" data-id="3">Ver detalle</button>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="card" data-id="4" data-nombre="Empanada de horno (pollo)" data-precio="900">
+                <div class="w3-container w3-center">
+                    <h2>Empanada de horno (pollo)</h2>
+                    <p>Código de barra: None</p>
+                    <p>Stock disponible: <strong>40</strong></p>
+                        <p>Precio: <strong>$900</strong></p>
+                    <div class="card-actions">
+                            <button class="button1 add-to-cart" data-id="4" data-nombre="Empanada de horno (pollo)" data-precio="900">Agregar al carrito</button>
+                        <button class="button1 view-detail" data-id="4">Ver detalle</button>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="card" data-id="5" data-nombre="Pastel de tres leches" data-precio="4500">
+                <div class="w3-container w3-center">
+                    <h2>Pastel de tres leches</h2>
+                    <p>Código de barra: None</p>
+                    <p>Stock disponible: <strong>10</strong></p>
+                        <p>Precio: <strong>$4.500</strong></p>
+                    <div class="card-actions">
+                            <button class="button1 add-to-cart" data-id="5" data-nombre="Pastel de tres leches" data-precio="4500">Agregar al carrito</button>
+                        <button class="button1 view-detail" data-id="5">Ver detalle</button>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="card" data-id="6" data-nombre="Dorado de chocolate" data-precio="2500">
+                <div class="w3-container w3-center">
+                    <h2>Dorado de chocolate</h2>
+                    <p>Código de barra: None</p>
+                    <p>Stock disponible: <strong>15</strong></p>
+                        <p>Precio: <strong>$2.500</strong></p>
+                    <div class="card-actions">
+                            <button class="button1 add-to-cart" data-id="6" data-nombre="Dorado de chocolate" data-precio="2500">Agregar al carrito</button>
+                        <button class="button1 view-detail" data-id="6">Ver detalle</button>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="card" data-id="7" data-nombre="Café Lavazza (taza)" data-precio="900">
+                <div class="w3-container w3-center">
+                    <h2>Café Lavazza (taza)</h2>
+                    <p>Código de barra: None</p>
+                    <p>Stock disponible: <strong>100</strong></p>
+                        <p>Precio: <strong>$900</strong></p>
+                    <div class="card-actions">
+                            <button class="button1 add-to-cart" data-id="7" data-nombre="Café Lavazza (taza)" data-precio="900">Agregar al carrito</button>
+                        <button class="button1 view-detail" data-id="7">Ver detalle</button>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="card" data-id="8" data-nombre="Camarones congelados (500g)" data-precio="6000">
+                <div class="w3-container w3-center">
+                    <h2>Camarones congelados (500g)</h2>
+                    <p>Código de barra: None</p>
+                    <p>Stock disponible: <strong>20</strong></p>
+                        <p>Precio: <strong>$6.000</strong></p>
+                    <div class="card-actions">
+                            <button class="button1 add-to-cart" data-id="8" data-nombre="Camarones congelados (500g)" data-precio="6000">Agregar al carrito</button>
+                        <button class="button1 view-detail" data-id="8">Ver detalle</button>
+                    </div>
+                </div>
+            </div>
+        
+    </div>
+
+    <!-- Controles de paginación -->
+    <div class="pagination">
+        <span class="step-links">
+            
+
+            <span class="current">
+                Página 1 de 1
+            </span>
+
+            
+        </span>
+    </div>
+</div>
+
+<!-- Sección lateral derecha -->
+<div class="side">
+    <div class="containerusuario">
+        <h5>Usuario:</h5>
+    </div>
+    
+    <div class="containercarrito">
+        <h3>Carrito de compras</h3>
+        <div id="cart">
+            <ul class="list-group" id="cart-items">
+                <!-- items dinámicos -->
+            </ul>
+            <div class="cart-footer">
+                <p>Total: $<span id="cart-total">0.00</span></p>
+                <button id="checkout-btn" class="button1">Finalizar compra</button>
+                <button id="clear-cart" class="button1">Vaciar</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Modal detalle producto -->
+<div id="productModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span id="modal-close" class="modal-close">&times;</span>
+        <h2 id="modal-nombre"></h2>
+        <p id="modal-descripcion"></p>
+        <p>Precio: $<span id="modal-precio"></span></p>
+        <p>Stock: <span id="modal-stock"></span></p>
+    </div>
+</div>
+
+<!-- Modal carrito / checkout -->
+<div id="cartModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span id="cart-modal-close" class="modal-close">&times;</span>
+        <h2>Resumen de la venta</h2>
+        <div id="cart-modal-items">
+            <!-- items dinámicos -->
+        </div>
+        <hr>
+        <p>Subtotal: <strong id="cart-subtotal">$0</strong></p>
+        <p>IVA (19%): <strong id="cart-iva">$0</strong></p>
+        <p>Total: <strong id="cart-total-modal">$0</strong></p>
+
+        <label for="monto-pagado">Monto pagado:</label>
+        <input id="monto-pagado" type="number" step="1" min="0" />
+        <p>Vuelto: <strong id="cart-change">$0</strong></p>
+
+        <div style="margin-top:1rem;">
+            <button id="confirm-sale" class="button1">Confirmar venta (simulación)</button>
+            <button id="cancel-sale" class="button1">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/pos.js"></script>
+
+    </div>
+</body>
+</html>

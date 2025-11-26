@@ -1,0 +1,29 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<title>Fornería - Panel</title>
+		<link rel="stylesheet" href="{% static 'css/style.css' %}">
+	</head>
+	<body>
+		<header class="site-header">
+			<nav>
+				<a href="/">Inicio</a> |
+				<a href="/pos/sistema/">POS</a> |
+				<a href="/admin/">Admin</a>
+			</nav>
+		</header>
+
+		<main>
+			{% block content %}{% endblock %}
+		</main>
+
+		<footer style="margin-top:2rem; text-align:center; color:#666;">
+			Fornería · Desarrollo
+		</footer>
+
+		<script src="{% static 'js/pos.js' %}"></script>
+	</body>
+</html>
