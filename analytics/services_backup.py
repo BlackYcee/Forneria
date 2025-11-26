@@ -72,17 +72,13 @@ class FinanzasMetrics:
         Ventas agrupadas por día para gráfico de líneas
         Formato optimizado para Chart.js
         """
-        from django.db.models.functions import Cast
-        from django.db.models import DateField
-
         fecha_inicio_dt, fecha_fin_dt = _date_to_datetime_range(fecha_inicio, fecha_fin)
 
-        # Usar Cast para convertir datetime a date (compatible con MySQL + timezone)
         ventas = Venta.objects.filter(
             fecha__gte=fecha_inicio_dt,
             fecha__lt=fecha_fin_dt
-        ).extra(
-            select={'dia': 'DATE(fecha)'}
+        ).annotate(
+            dia=TruncDate('fecha')
         ).values('dia').annotate(
             total=Sum('total_con_iva'),
             cantidad=Count('id')
@@ -92,7 +88,7 @@ class FinanzasMetrics:
         ventas_list = [v for v in ventas if v['dia'] is not None]
 
         return {
-            'labels': [str(v['dia']) for v in ventas_list],
+            'labels': [v['dia'].isoformat() for v in ventas_list],
             'totales': [float(v['total']) for v in ventas_list],
             'cantidades': [v['cantidad'] for v in ventas_list]
         }
@@ -104,11 +100,10 @@ class FinanzasMetrics:
         """
         fecha_inicio = timezone.now() - timedelta(days=7)
 
-        # Usar HOUR() de MySQL para compatibilidad con timezone
         ventas = Venta.objects.filter(
             fecha__gte=fecha_inicio
-        ).extra(
-            select={'hora': 'HOUR(fecha)'}
+        ).annotate(
+            hora=ExtractHour('fecha')
         ).values('hora').annotate(
             total=Sum('total_con_iva'),
             cantidad=Count('id')
@@ -117,12 +112,10 @@ class FinanzasMetrics:
         # Llenar horas faltantes con 0
         horas_completas = {h: {'total': 0, 'cantidad': 0} for h in range(24)}
         for v in ventas:
-            if v['hora'] is not None:
-                hora_int = int(v['hora'])
-                horas_completas[hora_int] = {
-                    'total': float(v['total']),
-                    'cantidad': v['cantidad']
-                }
+            horas_completas[v['hora']] = {
+                'total': float(v['total']),
+                'cantidad': v['cantidad']
+            }
 
         return {
             'labels': [f"{h:02d}:00" for h in range(24)],
@@ -213,27 +206,21 @@ class FinanzasMetrics:
         """
         Comparativa de ventas de los últimos N meses
         """
-        from datetime import datetime
         fecha_inicio = timezone.now().date() - timedelta(days=meses*30)
-        fecha_inicio_dt = timezone.make_aware(datetime.combine(fecha_inicio, datetime.min.time()))
 
-        # Usar DATE_FORMAT para MySQL (compatible con timezone)
         ventas_mensuales = Venta.objects.filter(
-            fecha__gte=fecha_inicio_dt
-        ).extra(
-            select={'mes': "DATE_FORMAT(fecha, '%%Y-%%m-01')"}
+            fecha__date__gte=fecha_inicio
+        ).annotate(
+            mes=TruncMonth('fecha')
         ).values('mes').annotate(
             total=Sum('total_con_iva'),
             cantidad=Count('id')
         ).order_by('mes')
 
-        # Filtrar None y convertir fechas
-        meses_list = [v for v in ventas_mensuales if v['mes'] is not None]
-
         return {
-            'labels': [datetime.strptime(str(v['mes']), '%Y-%m-%d').strftime('%B %Y') if v['mes'] else '' for v in meses_list],
-            'totales': [float(v['total']) for v in meses_list],
-            'cantidades': [v['cantidad'] for v in meses_list]
+            'labels': [v['mes'].strftime('%B %Y') for v in ventas_mensuales],
+            'totales': [float(v['total']) for v in ventas_mensuales],
+            'cantidades': [v['cantidad'] for v in ventas_mensuales]
         }
 
     @staticmethod
@@ -241,9 +228,9 @@ class FinanzasMetrics:
         """
         Top clientes por volumen de compras
         """
-        fecha_inicio_dt, fecha_fin_dt = _date_to_datetime_range(fecha_inicio, fecha_fin)
         filtros = Q(cliente__isnull=False)
-        filtros &= Q(fecha__gte=fecha_inicio_dt, fecha__lt=fecha_fin_dt)
+        if fecha_inicio and fecha_fin:
+            filtros &= Q(fecha__date__range=[fecha_inicio, fecha_fin])
 
         clientes = Venta.objects.filter(filtros).values(
             'cliente__id',
@@ -317,10 +304,13 @@ class FinanzasMetrics:
         Métricas financieras avanzadas del periodo
         Incluye: ventas netas, margen de descuento, tasa de descuento promedio
         """
-        fecha_inicio_dt, fecha_fin_dt = _date_to_datetime_range(fecha_inicio, fecha_fin)
+        if not fecha_inicio:
+            fecha_inicio = timezone.now().date() - timedelta(days=30)
+        if not fecha_fin:
+            fecha_fin = timezone.now().date()
 
         resultado = Venta.objects.filter(
-            fecha__gte=fecha_inicio_dt, fecha__lt=fecha_fin_dt
+            fecha__date__range=[fecha_inicio, fecha_fin]
         ).aggregate(
             total_bruto=Coalesce(Sum(F('total_sin_iva') + F('descuento')), Decimal('0')),
             total_neto=Coalesce(Sum('total_sin_iva'), Decimal('0')),
@@ -347,8 +337,8 @@ class FinanzasMetrics:
             'margen_descuento_pct': margen_descuento,
             'descuento_promedio_transaccion': tasa_descuento_promedio,
             'cantidad_ventas': cantidad_ventas,
-            'fecha_inicio': fecha_inicio_dt.date().isoformat(),
-            'fecha_fin': (fecha_fin_dt - timedelta(days=1)).date().isoformat()
+            'fecha_inicio': fecha_inicio.isoformat(),
+            'fecha_fin': fecha_fin.isoformat()
         }
 
     @staticmethod
@@ -356,21 +346,24 @@ class FinanzasMetrics:
         """
         Ticket promedio segmentado por canal y por día de semana
         """
-        fecha_inicio_dt, fecha_fin_dt = _date_to_datetime_range(fecha_inicio, fecha_fin)
+        if not fecha_inicio:
+            fecha_inicio = timezone.now().date() - timedelta(days=30)
+        if not fecha_fin:
+            fecha_fin = timezone.now().date()
 
         # Por canal
         por_canal = Venta.objects.filter(
-            fecha__gte=fecha_inicio_dt, fecha__lt=fecha_fin_dt
+            fecha__date__range=[fecha_inicio, fecha_fin]
         ).values('canal_venta').annotate(
             ticket_promedio=Avg('total_con_iva'),
             cantidad=Count('id')
         )
 
-        # Por día de semana - usar DAYOFWEEK() de MySQL (1=Domingo, 7=Sábado)
+        # Por día de semana (1=Domingo, 7=Sábado en ExtractWeekDay)
         por_dia_semana = Venta.objects.filter(
-            fecha__gte=fecha_inicio_dt, fecha__lt=fecha_fin_dt
-        ).extra(
-            select={'dia_semana': 'DAYOFWEEK(fecha)'}
+            fecha__date__range=[fecha_inicio, fecha_fin]
+        ).annotate(
+            dia_semana=ExtractWeekDay('fecha')
         ).values('dia_semana').annotate(
             ticket_promedio=Avg('total_con_iva'),
             total=Sum('total_con_iva'),
@@ -382,9 +375,6 @@ class FinanzasMetrics:
             5: 'Jueves', 6: 'Viernes', 7: 'Sábado'
         }
 
-        # Filtrar None
-        por_dia_semana_list = [d for d in por_dia_semana if d['dia_semana'] is not None]
-
         return {
             'por_canal': [{
                 'canal': c['canal_venta'],
@@ -392,12 +382,12 @@ class FinanzasMetrics:
                 'cantidad': c['cantidad']
             } for c in por_canal],
             'por_dia_semana': [{
-                'dia': dias_semana_nombres.get(int(d['dia_semana']), 'Desconocido'),
-                'dia_numero': int(d['dia_semana']),
+                'dia': dias_semana_nombres.get(d['dia_semana'], 'Desconocido'),
+                'dia_numero': d['dia_semana'],
                 'ticket_promedio': float(d['ticket_promedio']),
                 'total': float(d['total']),
                 'cantidad': d['cantidad']
-            } for d in por_dia_semana_list]
+            } for d in por_dia_semana]
         }
 
     @staticmethod
@@ -405,13 +395,15 @@ class FinanzasMetrics:
         """
         Distribución de ventas por día de la semana
         """
-        fecha_inicio_dt, fecha_fin_dt = _date_to_datetime_range(fecha_inicio, fecha_fin)
+        if not fecha_inicio:
+            fecha_inicio = timezone.now().date() - timedelta(days=30)
+        if not fecha_fin:
+            fecha_fin = timezone.now().date()
 
-        # Usar DAYOFWEEK() de MySQL (1=Domingo, 7=Sábado)
         ventas = Venta.objects.filter(
-            fecha__gte=fecha_inicio_dt, fecha__lt=fecha_fin_dt
-        ).extra(
-            select={'dia_semana': 'DAYOFWEEK(fecha)'}
+            fecha__date__range=[fecha_inicio, fecha_fin]
+        ).annotate(
+            dia_semana=ExtractWeekDay('fecha')
         ).values('dia_semana').annotate(
             total=Sum('total_con_iva'),
             cantidad=Count('id')
@@ -423,12 +415,10 @@ class FinanzasMetrics:
         resultado = {i+1: {'total': 0, 'cantidad': 0} for i in range(7)}
 
         for v in ventas:
-            if v['dia_semana'] is not None:
-                dia_int = int(v['dia_semana'])
-                resultado[dia_int] = {
-                    'total': float(v['total']),
-                    'cantidad': v['cantidad']
-                }
+            resultado[v['dia_semana']] = {
+                'total': float(v['total']),
+                'cantidad': v['cantidad']
+            }
 
         return {
             'labels': dias_semana_nombres,
@@ -441,12 +431,14 @@ class FinanzasMetrics:
         """
         Análisis de clientes nuevos vs recurrentes en el periodo
         """
-        fecha_inicio_dt, fecha_fin_dt = _date_to_datetime_range(fecha_inicio, fecha_fin)
-        fecha_inicio_date = fecha_inicio_dt.date()
+        if not fecha_inicio:
+            fecha_inicio = timezone.now().date() - timedelta(days=30)
+        if not fecha_fin:
+            fecha_fin = timezone.now().date()
 
         # Ventas del periodo con cliente
         ventas_periodo = Venta.objects.filter(
-            fecha__gte=fecha_inicio_dt, fecha__lt=fecha_fin_dt,
+            fecha__date__range=[fecha_inicio, fecha_fin],
             cliente__isnull=False
         )
 
@@ -464,7 +456,7 @@ class FinanzasMetrics:
 
         for c in clientes_stats:
             # Si la primera compra fue en este periodo y solo tiene 1 compra, es nuevo
-            if c['primera_compra'].date() >= fecha_inicio_date and c['num_compras'] == 1:
+            if c['primera_compra'].date() >= fecha_inicio and c['num_compras'] == 1:
                 nuevos += 1
                 total_nuevos += c['total_gastado']
             else:
@@ -490,16 +482,16 @@ class FinanzasMetrics:
         Heatmap de ventas: matriz de horas (0-23) x días de semana (Lun-Dom)
         Para visualizar patrones de venta por hora y día
         """
-        fecha_inicio_dt, fecha_fin_dt = _date_to_datetime_range(fecha_inicio, fecha_fin)
+        if not fecha_inicio:
+            fecha_inicio = timezone.now().date() - timedelta(days=30)
+        if not fecha_fin:
+            fecha_fin = timezone.now().date()
 
-        # Usar HOUR() y DAYOFWEEK() de MySQL
         ventas = Venta.objects.filter(
-            fecha__gte=fecha_inicio_dt, fecha__lt=fecha_fin_dt
-        ).extra(
-            select={
-                'hora': 'HOUR(fecha)',
-                'dia_semana': 'DAYOFWEEK(fecha)'
-            }
+            fecha__date__range=[fecha_inicio, fecha_fin]
+        ).annotate(
+            hora=ExtractHour('fecha'),
+            dia_semana=ExtractWeekDay('fecha')
         ).values('hora', 'dia_semana').annotate(
             total=Sum('total_con_iva'),
             cantidad=Count('id')
@@ -511,14 +503,10 @@ class FinanzasMetrics:
             heatmap[hora] = {dia: {'total': 0, 'cantidad': 0} for dia in range(1, 8)}
 
         for v in ventas:
-            # Filtrar registros con hora o dia_semana None
-            if v['hora'] is not None and v['dia_semana'] is not None:
-                hora_int = int(v['hora'])
-                dia_int = int(v['dia_semana'])
-                heatmap[hora_int][dia_int] = {
-                    'total': float(v['total']),
-                    'cantidad': v['cantidad']
-                }
+            heatmap[v['hora']][v['dia_semana']] = {
+                'total': float(v['total']),
+                'cantidad': v['cantidad']
+            }
 
         # Convertir a formato para Chart.js heatmap
         dias_nombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
@@ -545,11 +533,9 @@ class FinanzasMetrics:
         fecha_fin = timezone.now().date()
         fecha_inicio = fecha_fin - timedelta(days=30)
 
-        fecha_inicio_dt, fecha_fin_dt = _date_to_datetime_range(fecha_inicio, fecha_fin)
-
         # Promedio diario de los últimos 30 días
         promedio_diario = Venta.objects.filter(
-            fecha__gte=fecha_inicio_dt, fecha__lt=fecha_fin_dt
+            fecha__date__range=[fecha_inicio, fecha_fin]
         ).aggregate(
             total=Coalesce(Sum('total_con_iva'), Decimal('0'))
         )
@@ -576,22 +562,18 @@ class FinanzasMetrics:
         Comparativa Month-over-Month (MoM)
         Muestra crecimiento/decrecimiento porcentual mes a mes
         """
-        from datetime import datetime
         fecha_inicio = timezone.now().date() - timedelta(days=meses*30)
-        fecha_inicio_dt = timezone.make_aware(datetime.combine(fecha_inicio, datetime.min.time()))
 
-        # Usar DATE_FORMAT para MySQL (compatible con timezone)
         ventas_mensuales = Venta.objects.filter(
-            fecha__gte=fecha_inicio_dt
-        ).extra(
-            select={'mes': "DATE_FORMAT(fecha, '%%Y-%%m-01')"}
+            fecha__date__gte=fecha_inicio
+        ).annotate(
+            mes=TruncMonth('fecha')
         ).values('mes').annotate(
             total=Sum('total_con_iva'),
             cantidad=Count('id')
         ).order_by('mes')
 
-        # Filtrar None
-        meses_data = [v for v in ventas_mensuales if v['mes'] is not None]
+        meses_data = list(ventas_mensuales)
 
         # Calcular variación MoM
         for i in range(1, len(meses_data)):
@@ -609,7 +591,7 @@ class FinanzasMetrics:
             meses_data[0]['variacion_mom'] = 0
 
         return [{
-            'mes': datetime.strptime(str(m['mes']), '%Y-%m-%d').strftime('%B %Y') if m['mes'] else '',
+            'mes': m['mes'].strftime('%B %Y'),
             'total': float(m['total']),
             'cantidad': m['cantidad'],
             'variacion_mom': m.get('variacion_mom', 0)
@@ -621,23 +603,23 @@ class FinanzasMetrics:
         Sistema de alertas automáticas basado en métricas
         Detecta: caída de ventas, bajo rendimiento, productos sin vender, etc.
         """
-        fecha_inicio_dt, fecha_fin_dt = _date_to_datetime_range(fecha_inicio, fecha_fin)
-        fecha_inicio_date = fecha_inicio_dt.date()
-        fecha_fin_date = (fecha_fin_dt - timedelta(days=1)).date()
+        if not fecha_inicio:
+            fecha_inicio = timezone.now().date() - timedelta(days=7)
+        if not fecha_fin:
+            fecha_fin = timezone.now().date()
 
         alertas = []
 
         # 1. Alerta: Caída de ventas respecto a semana anterior
-        semana_anterior_inicio = fecha_inicio_date - timedelta(days=7)
-        semana_anterior_fin = fecha_inicio_date - timedelta(days=1)
-        semana_anterior_inicio_dt, semana_anterior_fin_dt = _date_to_datetime_range(semana_anterior_inicio, semana_anterior_fin)
+        semana_anterior_inicio = fecha_inicio - timedelta(days=7)
+        semana_anterior_fin = fecha_inicio - timedelta(days=1)
 
         ventas_actuales = Venta.objects.filter(
-            fecha__gte=fecha_inicio_dt, fecha__lt=fecha_fin_dt
+            fecha__date__range=[fecha_inicio, fecha_fin]
         ).aggregate(total=Coalesce(Sum('total_con_iva'), Decimal('0')))
 
         ventas_anteriores = Venta.objects.filter(
-            fecha__gte=semana_anterior_inicio_dt, fecha__lt=semana_anterior_fin_dt
+            fecha__date__range=[semana_anterior_inicio, semana_anterior_fin]
         ).aggregate(total=Coalesce(Sum('total_con_iva'), Decimal('0')))
 
         if ventas_anteriores['total'] > 0:
@@ -660,7 +642,7 @@ class FinanzasMetrics:
 
         # 2. Alerta: Productos sin vender en el periodo
         productos_vendidos = DetalleVenta.objects.filter(
-            venta__fecha__gte=fecha_inicio_dt, venta__fecha__lt=fecha_fin_dt
+            venta__fecha__date__range=[fecha_inicio, fecha_fin]
         ).values_list('producto_id', flat=True).distinct()
 
         total_productos = Producto.objects.count()
@@ -676,11 +658,9 @@ class FinanzasMetrics:
 
         # 3. Alerta: Días sin ventas
         dias_sin_ventas = 0
-        for i in range((fecha_fin_date - fecha_inicio_date).days + 1):
-            dia = fecha_inicio_date + timedelta(days=i)
-            dia_inicio_dt = timezone.make_aware(datetime.combine(dia, datetime.min.time()))
-            dia_fin_dt = dia_inicio_dt + timedelta(days=1)
-            ventas_dia = Venta.objects.filter(fecha__gte=dia_inicio_dt, fecha__lt=dia_fin_dt).count()
+        for i in range((fecha_fin - fecha_inicio).days + 1):
+            dia = fecha_inicio + timedelta(days=i)
+            ventas_dia = Venta.objects.filter(fecha__date=dia).count()
             if ventas_dia == 0:
                 dias_sin_ventas += 1
 
@@ -694,11 +674,11 @@ class FinanzasMetrics:
 
         # 4. Alerta: Ticket promedio bajo
         ticket_actual = Venta.objects.filter(
-            fecha__gte=fecha_inicio_dt, fecha__lt=fecha_fin_dt
+            fecha__date__range=[fecha_inicio, fecha_fin]
         ).aggregate(promedio=Avg('total_con_iva'))
 
         ticket_historico = Venta.objects.filter(
-            fecha__lt=fecha_inicio_dt
+            fecha__date__lt=fecha_inicio
         ).aggregate(promedio=Avg('total_con_iva'))
 
         if ticket_actual['promedio'] and ticket_historico['promedio']:
@@ -926,12 +906,12 @@ class FinanzasMetrics:
         fecha_inicio_date = fecha_inicio_dt.date()
         fecha_fin_date = (fecha_fin_dt - timedelta(days=1)).date()
 
-        # Ingresos por día (usar DATE() para MySQL + timezone)
+        # Ingresos por día
         ingresos = Venta.objects.filter(
             fecha__gte=fecha_inicio_dt,
             fecha__lt=fecha_fin_dt
-        ).extra(
-            select={'dia': 'DATE(fecha)'}
+        ).annotate(
+            dia=TruncDate('fecha')
         ).values('dia').annotate(
             total=Sum('total_con_iva')
         ).order_by('dia')
@@ -954,9 +934,7 @@ class FinanzasMetrics:
         # Llenar ingresos
         for i in ingresos:
             if i['dia'] is not None:
-                dia_str = str(i['dia']) if not isinstance(i['dia'], str) else i['dia']
-                if dia_str in dias_dict:
-                    dias_dict[dia_str]['ingresos'] = float(i['total'])
+                dias_dict[i['dia'].isoformat()]['ingresos'] = float(i['total'])
 
         # Llenar gastos
         for g in gastos:

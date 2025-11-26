@@ -23,11 +23,12 @@ class Nutricional(models.Model):
 
 # Producto
 class Producto(models.Model):
-    codigo_barra = models.IntegerField(null=True, blank=True)
+    codigo_barra = models.BigIntegerField(null=True, blank=True)
     nombre = models.CharField(max_length=100)
     descripcion = models.CharField(max_length=300, null=True, blank=True)
     marca = models.CharField(max_length=100, null=True, blank=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
+    costo_unitario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Costo de producción/compra del producto")
     tipo = models.CharField(max_length=100, null=True, blank=True)
     presentacion = models.CharField(max_length=100, null=True, blank=True)
     formato = models.CharField(max_length=100, null=True, blank=True)
@@ -78,6 +79,19 @@ class Producto(models.Model):
             producto=self
         )
         return mov
+
+    def margen_bruto(self):
+        """Calcula el margen bruto del producto (precio - costo)."""
+        if self.costo_unitario:
+            return float(self.precio) - float(self.costo_unitario)
+        return None
+
+    def margen_bruto_porcentaje(self):
+        """Calcula el margen bruto como porcentaje del precio de venta."""
+        if self.costo_unitario and self.precio:
+            margen = float(self.precio) - float(self.costo_unitario)
+            return round((margen / float(self.precio)) * 100, 2)
+        return None
 
 class Lote(models.Model):
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name="lotes")
@@ -295,3 +309,33 @@ class Turno(models.Model):
 
     def __str__(self):
         return f"Turno de {self.empleado} el {self.fecha}"
+
+
+# Gastos Operativos
+class GastoOperativo(models.Model):
+    TIPO_GASTO_CHOICES = [
+        ('alquiler', 'Alquiler'),
+        ('servicios', 'Servicios (luz, agua, gas)'),
+        ('salarios', 'Salarios'),
+        ('marketing', 'Marketing y Publicidad'),
+        ('mantenimiento', 'Mantenimiento'),
+        ('suministros', 'Suministros'),
+        ('transporte', 'Transporte'),
+        ('impuestos', 'Impuestos y Licencias'),
+        ('otro', 'Otro'),
+    ]
+
+    tipo_gasto = models.CharField(max_length=20, choices=TIPO_GASTO_CHOICES)
+    descripcion = models.CharField(max_length=255)
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    fecha = models.DateField()
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    es_recurrente = models.BooleanField(default=False, help_text="Si es un gasto mensual fijo")
+
+    class Meta:
+        verbose_name = "Gasto Operativo"
+        verbose_name_plural = "Gastos Operativos"
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.get_tipo_gasto_display()} - ${self.monto} ({self.fecha})"

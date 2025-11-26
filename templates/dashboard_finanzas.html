@@ -125,6 +125,97 @@
                 </div>
             </div>
 
+            <!-- MÉTRICAS FINANCIERAS -->
+            <h4 class="mb-3"><i class="bi bi-calculator"></i> Métricas Financieras</h4>
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-light border-0">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Utilidad Bruta</h6>
+                            <h3 class="card-title mb-1 {% if utilidad_bruta.utilidad_bruta >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ utilidad_bruta.utilidad_bruta|floatformat:0 }}
+                            </h3>
+                            <small class="text-muted">Margen: {{ utilidad_bruta.margen_bruto_pct }}%</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="card bg-light border-0">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Gastos Operativos</h6>
+                            <h3 class="card-title mb-1 text-danger">
+                                ${{ gastos_operativos.total_gastos|floatformat:0 }}
+                            </h3>
+                            <small class="text-muted">Período actual</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white border-0">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-white-50">Utilidad Neta</h6>
+                            <h3 class="card-title mb-1">
+                                ${{ utilidad_neta.utilidad_neta|floatformat:0 }}
+                            </h3>
+                            <small class="text-white-50">Margen: {{ utilidad_neta.margen_utilidad_neta_pct }}%</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="card bg-dark text-white border-0">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-white-50">ROI</h6>
+                            <h3 class="card-title mb-1">
+                                {{ roi.roi_porcentaje }}%
+                            </h3>
+                            <small class="text-white-50">Return on Investment</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Punto de Equilibrio -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="bi bi-bullseye"></i> Punto de Equilibrio</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <p class="mb-1 text-muted">Transacciones Necesarias</p>
+                                    <h4>{{ punto_equilibrio.transacciones_necesarias|floatformat:0 }}</h4>
+                                </div>
+                                <div class="col-md-3">
+                                    <p class="mb-1 text-muted">Transacciones Actuales</p>
+                                    <h4 class="{% if punto_equilibrio.transacciones_actuales >= punto_equilibrio.transacciones_necesarias %}text-success{% else %}text-warning{% endif %}">
+                                        {{ punto_equilibrio.transacciones_actuales }}
+                                    </h4>
+                                </div>
+                                <div class="col-md-3">
+                                    <p class="mb-1 text-muted">Progreso</p>
+                                    <div class="progress" style="height: 30px;">
+                                        <div class="progress-bar {% if punto_equilibrio.porcentaje_alcanzado >= 100 %}bg-success{% else %}bg-warning{% endif %}"
+                                             role="progressbar"
+                                             style="width: {{ punto_equilibrio.porcentaje_alcanzado|floatformat:0 }}%">
+                                            {{ punto_equilibrio.porcentaje_alcanzado|floatformat:0 }}%
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <p class="mb-1 text-muted">Monto Necesario</p>
+                                    <h4>${{ punto_equilibrio.monto_ventas_necesario|floatformat:0 }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Métricas Financieras Avanzadas -->
             <div class="row mb-4">
                 <div class="col-md-6">
@@ -400,6 +491,80 @@
                         </div>
                         <div class="card-body">
                             <canvas id="ventasPorHoraChart" height="80"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NUEVOS GRÁFICOS FINANCIEROS -->
+            <h4 class="mb-3 mt-5"><i class="bi bi-wallet2"></i> Análisis Financiero</h4>
+
+            <!-- Flujo de Caja -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Flujo de Caja: Ingresos vs Gastos</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="flujoCajaChart" height="80"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gastos Operativos y Productos Rentables -->
+            <div class="row mb-4">
+                <div class="col-md-5">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Gastos Operativos por Tipo</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="gastosOperativosChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-7">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Top 10 Productos Más Rentables</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th class="text-end">Cantidad</th>
+                                            <th class="text-end">Ingresos</th>
+                                            <th class="text-end">Utilidad</th>
+                                            <th class="text-end">Margen %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for producto in productos_rentables %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ producto.nombre }}</strong><br>
+                                                <small class="text-muted">{{ producto.categoria }}</small>
+                                            </td>
+                                            <td class="text-end">{{ producto.cantidad_vendida }}</td>
+                                            <td class="text-end">${{ producto.ingresos_totales|floatformat:0 }}</td>
+                                            <td class="text-end {% if producto.utilidad_bruta >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                                ${{ producto.utilidad_bruta|floatformat:0 }}
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="badge {% if producto.margen_bruto_pct >= 50 %}bg-success{% elif producto.margen_bruto_pct >= 30 %}bg-primary{% else %}bg-warning{% endif %}">
+                                                    {{ producto.margen_bruto_pct }}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -803,7 +968,7 @@ document.addEventListener('DOMContentLoaded', function() {
     data: {
         labels: ['Nuevos', 'Recurrentes'],
         datasets: [{
-            data: [clientesNuevos.nuevos, clientesNuevos.recurrentes],
+            data: [clientesNuevos.nuevos.cantidad, clientesNuevos.recurrentes.cantidad],
             backgroundColor: [colors.success, colors.primary]
         }]
     },
@@ -815,7 +980,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tooltip: {
                 callbacks: {
                     label: function(context) {
-                        const valores = [clientesNuevos.nuevos_ventas, clientesNuevos.recurrentes_ventas];
+                        const valores = [clientesNuevos.nuevos.total_ventas, clientesNuevos.recurrentes.total_ventas];
                         return context.label + ': ' + context.parsed + ' clientes (' + formatCurrency(valores[context.dataIndex]) + ')';
                     }
                 }
@@ -857,6 +1022,100 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+    }
+
+    // ===================== NUEVOS GRÁFICOS FINANCIEROS =====================
+
+    // ===================== GRÁFICO 9: FLUJO DE CAJA (Ingresos vs Gastos) =====================
+    const flujoCaja = {{ flujo_caja_json|safe }};
+    if (flujoCaja.labels && flujoCaja.labels.length > 0) {
+        const flujoCajaCtx = document.getElementById('flujoCajaChart').getContext('2d');
+        new Chart(flujoCajaCtx, {
+            type: 'line',
+            data: {
+                labels: flujoCaja.labels,
+                datasets: [
+                    {
+                        label: 'Ingresos',
+                        data: flujoCaja.ingresos,
+                        borderColor: colors.success,
+                        backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Gastos',
+                        data: flujoCaja.gastos,
+                        borderColor: colors.danger,
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Flujo Neto',
+                        data: flujoCaja.flujo_neto,
+                        borderColor: colors.primary,
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderDash: [5, 5]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: context => context.dataset.label + ': ' + formatCurrency(context.parsed.y)
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: value => formatCurrency(value) }
+                    }
+                }
+            }
+        });
+    }
+
+    // ===================== GRÁFICO 10: GASTOS OPERATIVOS POR TIPO =====================
+    const gastosDesglose = {{ gastos_desglose_json|safe }};
+    if (gastosDesglose && gastosDesglose.length > 0) {
+        const gastosCtx = document.getElementById('gastosOperativosChart').getContext('2d');
+        const gastosLabels = gastosDesglose.map(g => g.tipo.charAt(0).toUpperCase() + g.tipo.slice(1));
+        const gastosMonto = gastosDesglose.map(g => g.monto);
+
+        new Chart(gastosCtx, {
+            type: 'doughnut',
+            data: {
+                labels: gastosLabels,
+                datasets: [{
+                    data: gastosMonto,
+                    backgroundColor: chartColors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: context => context.label + ': ' + formatCurrency(context.parsed)
+                        }
+                    }
+                }
+            }
+        });
     }
 
     console.log('Dashboard financiero cargado correctamente');

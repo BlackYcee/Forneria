@@ -298,17 +298,21 @@ def alertas_automaticas(request):
 
 # === FUNCIONES DE EXPORTACIÓN ===
 
-@api_view(['GET'])
 def exportar_excel(request):
     """
     GET /analytics/finanzas/exportar/excel/
-    Exporta resumen financiero a Excel (usando openpyxl si está instalado, sino CSV)
+    Exporta resumen financiero completo a Excel
     """
     fecha_inicio = parse_fecha(request.GET.get('fecha_inicio'))
     fecha_fin = parse_fecha(request.GET.get('fecha_fin'))
 
+    # Obtener todas las métricas
     resumen = FinanzasMetrics.resumen_periodo(fecha_inicio, fecha_fin)
-    productos_top = FinanzasMetrics.productos_top(limite=20, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
+    utilidad_neta = FinanzasMetrics.utilidad_neta(fecha_inicio, fecha_fin)
+    roi = FinanzasMetrics.roi(fecha_inicio, fecha_fin)
+    punto_equilibrio = FinanzasMetrics.punto_equilibrio(fecha_inicio, fecha_fin)
+    gastos = FinanzasMetrics.gastos_operativos(fecha_inicio, fecha_fin)
+    productos_rentables = FinanzasMetrics.productos_rentables(limite=20, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
 
     try:
         from openpyxl import Workbook
@@ -316,54 +320,124 @@ def exportar_excel(request):
 
         wb = Workbook()
         ws = wb.active
-        ws.title = "Resumen Financiero"
+        ws.title = "Análisis Financiero"
 
         # Encabezados
         headers_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
         header_font = Font(bold=True, color="FFFFFF")
+        title_font = Font(bold=True, size=14)
 
-        # Sección Resumen
-        ws['A1'] = 'RESUMEN FINANCIERO'
-        ws['A1'].font = Font(bold=True, size=14)
+        # === TÍTULO ===
+        ws['A1'] = 'DASHBOARD FINANCIERO - FORNERIA'
+        ws['A1'].font = title_font
         ws['A2'] = f"Periodo: {resumen['fecha_inicio']} a {resumen['fecha_fin']}"
 
-        ws['A4'] = 'Métrica'
-        ws['B4'] = 'Valor'
-        ws['A4'].fill = headers_fill
-        ws['B4'].fill = headers_fill
-        ws['A4'].font = header_font
-        ws['B4'].font = header_font
+        # === MÉTRICAS FINANCIERAS CLAVE ===
+        row = 4
+        ws[f'A{row}'] = 'MÉTRICAS FINANCIERAS CLAVE'
+        ws[f'A{row}'].font = Font(bold=True, size=12)
 
-        ws['A5'] = 'Total Ventas'
-        ws['B5'] = resumen['total_ventas']
-        ws['A6'] = 'Cantidad Transacciones'
-        ws['B6'] = resumen['cantidad_transacciones']
-        ws['A7'] = 'Ticket Promedio'
-        ws['B7'] = resumen['ticket_promedio']
-        ws['A8'] = 'Total IVA'
-        ws['B8'] = resumen['total_iva']
-        ws['A9'] = 'Total Descuentos'
-        ws['B9'] = resumen['total_descuentos']
+        row += 1
+        ws[f'A{row}'] = 'Métrica'
+        ws[f'B{row}'] = 'Valor'
+        ws[f'A{row}'].fill = headers_fill
+        ws[f'B{row}'].fill = headers_fill
+        ws[f'A{row}'].font = header_font
+        ws[f'B{row}'].font = header_font
 
-        # Sección Top Productos
-        ws['A11'] = 'TOP PRODUCTOS'
-        ws['A11'].font = Font(bold=True, size=12)
+        row += 1
+        ws[f'A{row}'] = 'Ventas Totales (sin IVA)'
+        ws[f'B{row}'] = f"${utilidad_neta['ventas_totales']:,.0f}"
+        row += 1
+        ws[f'A{row}'] = 'Costo de Ventas'
+        ws[f'B{row}'] = f"${utilidad_neta['costo_ventas']:,.0f}"
+        row += 1
+        ws[f'A{row}'] = 'Utilidad Bruta'
+        ws[f'B{row}'] = f"${utilidad_neta['utilidad_bruta']:,.0f}"
+        row += 1
+        ws[f'A{row}'] = 'Gastos Operativos'
+        ws[f'B{row}'] = f"${utilidad_neta['gastos_operativos']:,.0f}"
+        row += 1
+        ws[f'A{row}'] = 'UTILIDAD NETA'
+        ws[f'B{row}'] = f"${utilidad_neta['utilidad_neta']:,.0f}"
+        ws[f'A{row}'].font = Font(bold=True)
+        ws[f'B{row}'].font = Font(bold=True)
+        row += 1
+        ws[f'A{row}'] = 'Margen Utilidad Neta %'
+        ws[f'B{row}'] = f"{utilidad_neta['margen_utilidad_neta_pct']}%"
+        row += 1
+        ws[f'A{row}'] = 'ROI %'
+        ws[f'B{row}'] = f"{roi['roi_porcentaje']}%"
 
-        ws['A12'] = 'Producto'
-        ws['B12'] = 'Categoría'
-        ws['C12'] = 'Cantidad Vendida'
-        ws['D12'] = 'Ingresos'
-        for cell in ['A12', 'B12', 'C12', 'D12']:
-            ws[cell].fill = headers_fill
-            ws[cell].font = header_font
+        # === PUNTO DE EQUILIBRIO ===
+        row += 3
+        ws[f'A{row}'] = 'PUNTO DE EQUILIBRIO'
+        ws[f'A{row}'].font = Font(bold=True, size=12)
 
-        row = 13
-        for p in productos_top:
+        row += 1
+        ws[f'A{row}'] = 'Transacciones Necesarias'
+        ws[f'B{row}'] = f"{punto_equilibrio['transacciones_necesarias']:.0f}"
+        row += 1
+        ws[f'A{row}'] = 'Transacciones Actuales'
+        ws[f'B{row}'] = f"{punto_equilibrio['transacciones_actuales']}"
+        row += 1
+        ws[f'A{row}'] = 'Porcentaje Alcanzado'
+        ws[f'B{row}'] = f"{punto_equilibrio['porcentaje_alcanzado']}%"
+
+        # === GASTOS OPERATIVOS ===
+        row += 3
+        ws[f'A{row}'] = 'GASTOS OPERATIVOS POR TIPO'
+        ws[f'A{row}'].font = Font(bold=True, size=12)
+
+        row += 1
+        ws[f'A{row}'] = 'Tipo de Gasto'
+        ws[f'B{row}'] = 'Monto'
+        ws[f'A{row}'].fill = headers_fill
+        ws[f'B{row}'].fill = headers_fill
+        ws[f'A{row}'].font = header_font
+        ws[f'B{row}'].font = header_font
+
+        for gasto in gastos['desglose']:
+            row += 1
+            ws[f'A{row}'] = gasto['tipo'].title()
+            ws[f'B{row}'] = f"${gasto['monto']:,.0f}"
+
+        # === PRODUCTOS MÁS RENTABLES ===
+        row += 3
+        ws[f'A{row}'] = 'TOP 20 PRODUCTOS MÁS RENTABLES'
+        ws[f'A{row}'].font = Font(bold=True, size=12)
+
+        row += 1
+        ws[f'A{row}'] = 'Producto'
+        ws[f'B{row}'] = 'Categoría'
+        ws[f'C{row}'] = 'Cantidad'
+        ws[f'D{row}'] = 'Ingresos'
+        ws[f'E{row}'] = 'Costos'
+        ws[f'F{row}'] = 'Utilidad'
+        ws[f'G{row}'] = 'Margen %'
+
+        for cell in ['A', 'B', 'C', 'D', 'E', 'F', 'G']:
+            ws[f'{cell}{row}'].fill = headers_fill
+            ws[f'{cell}{row}'].font = header_font
+
+        for p in productos_rentables:
+            row += 1
             ws[f'A{row}'] = p['nombre']
             ws[f'B{row}'] = p['categoria']
             ws[f'C{row}'] = p['cantidad_vendida']
-            ws[f'D{row}'] = p['ingresos']
-            row += 1
+            ws[f'D{row}'] = f"${p['ingresos_totales']:,.0f}"
+            ws[f'E{row}'] = f"${p['costo_total']:,.0f}"
+            ws[f'F{row}'] = f"${p['utilidad_bruta']:,.0f}"
+            ws[f'G{row}'] = f"{p['margen_bruto_pct']}%"
+
+        # Ajustar anchos de columna
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 15
+        ws.column_dimensions['D'].width = 15
+        ws.column_dimensions['E'].width = 15
+        ws.column_dimensions['F'].width = 15
+        ws.column_dimensions['G'].width = 12
 
         # Guardar en BytesIO
         output = BytesIO()
@@ -374,7 +448,7 @@ def exportar_excel(request):
             output.read(),
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
-        response['Content-Disposition'] = f'attachment; filename=reporte_finanzas_{timezone.now().strftime("%Y%m%d")}.xlsx'
+        response['Content-Disposition'] = f'attachment; filename=reporte_financiero_{timezone.now().strftime("%Y%m%d")}.xlsx'
         return response
 
     except ImportError:
@@ -382,49 +456,80 @@ def exportar_excel(request):
         return exportar_csv(request)
 
 
-@api_view(['GET'])
 def exportar_csv(request):
     """
     GET /analytics/finanzas/exportar/csv/
-    Exporta resumen financiero a CSV
+    Exporta análisis financiero completo a CSV
     """
     fecha_inicio = parse_fecha(request.GET.get('fecha_inicio'))
     fecha_fin = parse_fecha(request.GET.get('fecha_fin'))
 
+    # Obtener métricas
     resumen = FinanzasMetrics.resumen_periodo(fecha_inicio, fecha_fin)
-    productos_top = FinanzasMetrics.productos_top(limite=20, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
+    utilidad_neta = FinanzasMetrics.utilidad_neta(fecha_inicio, fecha_fin)
+    roi = FinanzasMetrics.roi(fecha_inicio, fecha_fin)
+    punto_equilibrio = FinanzasMetrics.punto_equilibrio(fecha_inicio, fecha_fin)
+    productos_rentables = FinanzasMetrics.productos_rentables(limite=20, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
+    gastos = FinanzasMetrics.gastos_operativos(fecha_inicio, fecha_fin)
 
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = f'attachment; filename=reporte_finanzas_{timezone.now().strftime("%Y%m%d")}.csv'
+    response['Content-Disposition'] = f'attachment; filename=reporte_financiero_{timezone.now().strftime("%Y%m%d")}.csv'
 
     writer = csv.writer(response)
 
-    # Resumen
-    writer.writerow(['RESUMEN FINANCIERO'])
+    # Título
+    writer.writerow(['DASHBOARD FINANCIERO - FORNERIA'])
     writer.writerow([f"Periodo: {resumen['fecha_inicio']} a {resumen['fecha_fin']}"])
     writer.writerow([])
+
+    # Métricas Financieras Clave
+    writer.writerow(['MÉTRICAS FINANCIERAS CLAVE'])
     writer.writerow(['Métrica', 'Valor'])
-    writer.writerow(['Total Ventas', resumen['total_ventas']])
-    writer.writerow(['Cantidad Transacciones', resumen['cantidad_transacciones']])
-    writer.writerow(['Ticket Promedio', resumen['ticket_promedio']])
-    writer.writerow(['Total IVA', resumen['total_iva']])
-    writer.writerow(['Total Descuentos', resumen['total_descuentos']])
+    writer.writerow(['Ventas Totales (sin IVA)', f"${utilidad_neta['ventas_totales']:,.0f}"])
+    writer.writerow(['Costo de Ventas', f"${utilidad_neta['costo_ventas']:,.0f}"])
+    writer.writerow(['Utilidad Bruta', f"${utilidad_neta['utilidad_bruta']:,.0f}"])
+    writer.writerow(['Gastos Operativos', f"${utilidad_neta['gastos_operativos']:,.0f}"])
+    writer.writerow(['UTILIDAD NETA', f"${utilidad_neta['utilidad_neta']:,.0f}"])
+    writer.writerow(['Margen Utilidad Neta %', f"{utilidad_neta['margen_utilidad_neta_pct']}%"])
+    writer.writerow(['ROI %', f"{roi['roi_porcentaje']}%"])
     writer.writerow([])
 
-    # Top Productos
-    writer.writerow(['TOP PRODUCTOS'])
-    writer.writerow(['Producto', 'Categoría', 'Cantidad Vendida', 'Ingresos'])
-    for p in productos_top:
-        writer.writerow([p['nombre'], p['categoria'], p['cantidad_vendida'], p['ingresos']])
+    # Punto de Equilibrio
+    writer.writerow(['PUNTO DE EQUILIBRIO'])
+    writer.writerow(['Métrica', 'Valor'])
+    writer.writerow(['Transacciones Necesarias', f"{punto_equilibrio['transacciones_necesarias']:.0f}"])
+    writer.writerow(['Transacciones Actuales', f"{punto_equilibrio['transacciones_actuales']}"])
+    writer.writerow(['Porcentaje Alcanzado', f"{punto_equilibrio['porcentaje_alcanzado']}%"])
+    writer.writerow([])
+
+    # Gastos Operativos
+    writer.writerow(['GASTOS OPERATIVOS POR TIPO'])
+    writer.writerow(['Tipo de Gasto', 'Monto'])
+    for gasto in gastos['desglose']:
+        writer.writerow([gasto['tipo'].title(), f"${gasto['monto']:,.0f}"])
+    writer.writerow([])
+
+    # Top Productos Rentables
+    writer.writerow(['TOP 20 PRODUCTOS MÁS RENTABLES'])
+    writer.writerow(['Producto', 'Categoría', 'Cantidad', 'Ingresos', 'Costos', 'Utilidad', 'Margen %'])
+    for p in productos_rentables:
+        writer.writerow([
+            p['nombre'],
+            p['categoria'],
+            p['cantidad_vendida'],
+            f"${p['ingresos_totales']:,.0f}",
+            f"${p['costo_total']:,.0f}",
+            f"${p['utilidad_bruta']:,.0f}",
+            f"{p['margen_bruto_pct']}%"
+        ])
 
     return response
 
 
-@api_view(['GET'])
 def exportar_pdf(request):
     """
     GET /analytics/finanzas/exportar/pdf/
-    Exporta resumen financiero a PDF (requiere reportlab)
+    Exporta análisis financiero completo a PDF
     """
     fecha_inicio = parse_fecha(request.GET.get('fecha_inicio'))
     fecha_fin = parse_fecha(request.GET.get('fecha_fin'))
@@ -436,8 +541,12 @@ def exportar_pdf(request):
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.units import inch
 
+        # Obtener métricas
         resumen = FinanzasMetrics.resumen_periodo(fecha_inicio, fecha_fin)
-        productos_top = FinanzasMetrics.productos_top(limite=10, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
+        utilidad_neta = FinanzasMetrics.utilidad_neta(fecha_inicio, fecha_fin)
+        roi = FinanzasMetrics.roi(fecha_inicio, fecha_fin)
+        punto_equilibrio = FinanzasMetrics.punto_equilibrio(fecha_inicio, fecha_fin)
+        productos_rentables = FinanzasMetrics.productos_rentables(limite=10, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
 
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -456,18 +565,23 @@ def exportar_pdf(request):
         elements.append(Paragraph(f"Periodo: {resumen['fecha_inicio']} a {resumen['fecha_fin']}", styles['Normal']))
         elements.append(Spacer(1, 0.3*inch))
 
-        # Tabla Resumen
-        data_resumen = [
+        # Tabla Métricas Financieras
+        elements.append(Paragraph("Métricas Financieras Clave", styles['Heading2']))
+        elements.append(Spacer(1, 0.2*inch))
+
+        data_finanzas = [
             ['Métrica', 'Valor'],
-            ['Total Ventas', f"${resumen['total_ventas']:,.2f}"],
-            ['Cantidad Transacciones', resumen['cantidad_transacciones']],
-            ['Ticket Promedio', f"${resumen['ticket_promedio']:,.2f}"],
-            ['Total IVA', f"${resumen['total_iva']:,.2f}"],
-            ['Total Descuentos', f"${resumen['total_descuentos']:,.2f}"],
+            ['Ventas Totales (sin IVA)', f"${utilidad_neta['ventas_totales']:,.0f}"],
+            ['Costo de Ventas', f"${utilidad_neta['costo_ventas']:,.0f}"],
+            ['Utilidad Bruta', f"${utilidad_neta['utilidad_bruta']:,.0f}"],
+            ['Gastos Operativos', f"${utilidad_neta['gastos_operativos']:,.0f}"],
+            ['UTILIDAD NETA', f"${utilidad_neta['utilidad_neta']:,.0f}"],
+            ['Margen Utilidad Neta %', f"{utilidad_neta['margen_utilidad_neta_pct']}%"],
+            ['ROI %', f"{roi['roi_porcentaje']}%"],
         ]
 
-        table_resumen = Table(data_resumen, colWidths=[3*inch, 2*inch])
-        table_resumen.setStyle(TableStyle([
+        table_finanzas = Table(data_finanzas, colWidths=[3*inch, 2*inch])
+        table_finanzas.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472C4')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -475,27 +589,28 @@ def exportar_pdf(request):
             ('FONTSIZE', (0, 0), (-1, 0), 12),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            # Resaltar Utilidad Neta
+            ('FONTNAME', (0, 5), (-1, 5), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, 5), (-1, 5), colors.HexColor('#E8F4F8')),
         ]))
 
-        elements.append(table_resumen)
+        elements.append(table_finanzas)
         elements.append(Spacer(1, 0.5*inch))
 
-        # Top Productos
-        elements.append(Paragraph("Top 10 Productos Más Vendidos", styles['Heading2']))
+        # Punto de Equilibrio
+        elements.append(Paragraph("Punto de Equilibrio", styles['Heading2']))
         elements.append(Spacer(1, 0.2*inch))
 
-        data_productos = [['Producto', 'Categoría', 'Cant.', 'Ingresos']]
-        for p in productos_top:
-            data_productos.append([
-                p['nombre'][:30],
-                p['categoria'][:20],
-                p['cantidad_vendida'],
-                f"${p['ingresos']:,.0f}"
-            ])
+        data_equilibrio = [
+            ['Métrica', 'Valor'],
+            ['Transacciones Necesarias', f"{punto_equilibrio['transacciones_necesarias']:.0f}"],
+            ['Transacciones Actuales', f"{punto_equilibrio['transacciones_actuales']}"],
+            ['Porcentaje Alcanzado', f"{punto_equilibrio['porcentaje_alcanzado']}%"],
+        ]
 
-        table_productos = Table(data_productos, colWidths=[2.5*inch, 1.5*inch, 0.8*inch, 1.2*inch])
-        table_productos.setStyle(TableStyle([
+        table_equilibrio = Table(data_equilibrio, colWidths=[3*inch, 2*inch])
+        table_equilibrio.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472C4')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -506,13 +621,43 @@ def exportar_pdf(request):
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey)
         ]))
 
+        elements.append(table_equilibrio)
+        elements.append(Spacer(1, 0.5*inch))
+
+        # Top Productos Rentables
+        elements.append(Paragraph("Top 10 Productos Más Rentables", styles['Heading2']))
+        elements.append(Spacer(1, 0.2*inch))
+
+        data_productos = [['Producto', 'Cantidad', 'Ingresos', 'Utilidad', 'Margen%']]
+        for p in productos_rentables:
+            data_productos.append([
+                p['nombre'][:25],
+                p['cantidad_vendida'],
+                f"${p['ingresos_totales']:,.0f}",
+                f"${p['utilidad_bruta']:,.0f}",
+                f"{p['margen_bruto_pct']}%"
+            ])
+
+        table_productos = Table(data_productos, colWidths=[2.2*inch, 0.8*inch, 1.1*inch, 1.1*inch, 0.8*inch])
+        table_productos.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472C4')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ]))
+
         elements.append(table_productos)
 
         doc.build(elements)
         buffer.seek(0)
 
         response = HttpResponse(buffer.read(), content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename=reporte_finanzas_{timezone.now().strftime("%Y%m%d")}.pdf'
+        response['Content-Disposition'] = f'attachment; filename=reporte_financiero_{timezone.now().strftime("%Y%m%d")}.pdf'
         return response
 
     except ImportError:
@@ -550,6 +695,15 @@ def dashboard_finanzas(request):
     mom = FinanzasMetrics.comparativa_mom(6)
     alertas = FinanzasMetrics.alertas_automaticas()
 
+    # NUEVAS MÉTRICAS FINANCIERAS
+    utilidad_bruta = FinanzasMetrics.utilidad_bruta(fecha_inicio, fecha_fin)
+    gastos_operativos = FinanzasMetrics.gastos_operativos(fecha_inicio, fecha_fin)
+    utilidad_neta = FinanzasMetrics.utilidad_neta(fecha_inicio, fecha_fin)
+    roi = FinanzasMetrics.roi(fecha_inicio, fecha_fin)
+    punto_equilibrio = FinanzasMetrics.punto_equilibrio(fecha_inicio, fecha_fin)
+    productos_rentables = FinanzasMetrics.productos_rentables(limite=10, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
+    flujo_caja = FinanzasMetrics.flujo_caja(fecha_inicio, fecha_fin)
+
     # Helper function to convert Decimal to float for JSON serialization
     def clean_for_json(obj):
         """Recursively convert Decimal to float in dict/list structures"""
@@ -580,6 +734,16 @@ def dashboard_finanzas(request):
         'proyeccion': proyeccion,
         'mom': mom,
         'alertas': alertas,
+
+        # NUEVAS MÉTRICAS FINANCIERAS
+        'utilidad_bruta': utilidad_bruta,
+        'gastos_operativos': gastos_operativos,
+        'utilidad_neta': utilidad_neta,
+        'roi': roi,
+        'punto_equilibrio': punto_equilibrio,
+        'productos_rentables': productos_rentables,
+        'flujo_caja': flujo_caja,
+
         'fecha_actual': timezone.now().strftime('%d/%m/%Y %H:%M:%S'),
         'fecha_inicio': fecha_inicio.isoformat() if fecha_inicio else '',
         'fecha_fin': fecha_fin.isoformat() if fecha_fin else '',
@@ -593,6 +757,8 @@ def dashboard_finanzas(request):
         'categorias_json': json.dumps(clean_for_json(categorias)),
         'clientes_nuevos_json': json.dumps(clean_for_json(clientes_nuevos)),
         'ventas_hora_json': json.dumps(clean_for_json(ventas_hora)),
+        'flujo_caja_json': json.dumps(clean_for_json(flujo_caja)),
+        'gastos_desglose_json': json.dumps(clean_for_json(gastos_operativos['desglose'])),
     }
 
     return render(request, 'dashboard_finanzas.html', context)
