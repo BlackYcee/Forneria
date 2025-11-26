@@ -1,15 +1,42 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
+from django.db.models import Sum, F
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+
+# ==========================================
+# 1. CATALOGO Y PRODUCTOS
+# ==========================================
 
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100)
     descripcion = models.CharField(max_length=200, null=True, blank=True)
 
     def __str__(self):
-        return self.nombre or f"Categoría {self.id}"
+        return self.nombre
 
+class Producto(models.Model):
+    codigo_barra = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    nombre = models.CharField(max_length=100)
+    descripcion = models.CharField(max_length=300, null=True, blank=True)
+    marca = models.CharField(max_length=100, null=True, blank=True)
+    precio_venta = models.DecimalField(max_digits=10, decimal_places=2, help_text="Precio Neto o Bruto según tu lógica")
+    tipo = models.CharField(max_length=100, null=True, blank=True)
+    presentacion = models.CharField(max_length=100, null=True, blank=True)
+    categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT)
+    
+    # OPTIMIZACIÓN DE RENDIMIENTO
+    # Este campo se actualiza solo (via señales) para no calcular sumas cada vez
+    stock_fisico = models.IntegerField(default=0, db_index=True) 
+    stock_minimo_global = models.IntegerField(default=5)
 
-# Información nutricional
+    def __str__(self):
+        return f"{self.nombre} ({self.stock_fisico})"
+
+    def precio_con_iva(self, iva=0.19):
+        return self.precio_venta * (1 + iva)
+
 class Nutricional(models.Model):
     calorias = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     proteinas = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -17,129 +44,213 @@ class Nutricional(models.Model):
     carbohidratos = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     azucares = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     sodio = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    producto = models.OneToOneField("Producto", on_delete=models.CASCADE, related_name="nutricional", null=True, blank=True)
+    producto = models.OneToOneField(Producto, on_delete=models.CASCADE, related_name="nutricional")
 
-# Producto
-class Producto(models.Model):
-    codigo_barra = models.CharField(max_length=50, unique=True, null=True, blank=True)
-    nombre = models.CharField(max_length=100)
-    descripcion = models.CharField(max_length=300, null=True, blank=True)
-    marca = models.CharField(max_length=100, null=True, blank=True)
-    precio = models.DecimalField(max_digits=10, decimal_places=2)
-    tipo = models.CharField(max_length=100, null=True, blank=True)
-    presentacion = models.CharField(max_length=100, null=True, blank=True)
-    formato = models.CharField(max_length=100, null=True, blank=True)
-    categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT)
-    
-    def __str__(self):
-        return self.nombre
+# ==========================================
+# 2. INVENTARIO (LOTES Y COSTOS)
+# ==========================================
 
 class Lote(models.Model):
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name="lotes")
     numero_lote = models.CharField(max_length=50, null=True, blank=True)
     fecha_elaboracion = models.DateField(null=True, blank=True)
     fecha_caducidad = models.DateField()
+    
+    # CRÍTICO PARA REPORTES FINANCIEROS
+    precio_costo_unitario = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Costo de compra neto")
+    
+    stock_inicial = models.IntegerField()
     stock_actual = models.IntegerField(default=0)
-    stock_minimo = models.IntegerField(null=True, blank=True)
-    stock_maximo = models.IntegerField(null=True, blank=True)
+    
     creado = models.DateTimeField(auto_now_add=True)
-    modificado = models.DateTimeField(auto_now=True)
     eliminado = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        ordering = ['fecha_caducidad'] # FIFO: Primero vence, primero sale
+
     def __str__(self):
-        return f"Lote {self.numero_lote or self.id} - {self.producto.nombre}"
+        return f"Lote {self.numero_lote} - {self.producto.nombre}"
 
-# Alertas sobre productos
-class Alerta(models.Model):
-    TIPO_ALERTA_CHOICES = [
-        ('verde', 'Verde'),
-        ('amarilla', 'Amarilla'),
-        ('roja', 'Roja'),
-    ]
-    tipo_alerta = models.CharField(max_length=10, choices=TIPO_ALERTA_CHOICES)
-    mensaje = models.CharField(max_length=255)
-    fecha_generada = models.DateTimeField(null=True, blank=True)
-    estado = models.CharField(max_length=20, null=True, blank=True)
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    @property
+    def esta_vencido(self):
+        return self.fecha_caducidad < timezone.now().date()
 
-# Cliente
+# ==========================================
+# 3. ACTORES (CLIENTES Y EMPLEADOS)
+# ==========================================
+
 class Cliente(models.Model):
-    rut = models.CharField(max_length=12, unique=True)
-    nombre = models.CharField(max_length=150, null=True, blank=True)
+    rut = models.CharField(max_length=12, unique=True, null=True, blank=True) # Null para ventas anonimas
+    nombre = models.CharField(max_length=150)
     correo = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    telefono = models.CharField(max_length=20, null=True, blank=True)
+    es_empresa = models.BooleanField(default=False)
 
     def __str__(self):
         return self.nombre
 
-# Empleado
+class Direccion(models.Model):
+    """Para delivery múltiple (Casa, Oficina)"""
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='direcciones')
+    alias = models.CharField(max_length=50, help_text="Ej: Casa, Oficina")
+    calle = models.CharField(max_length=200)
+    numero = models.CharField(max_length=20)
+    comuna = models.CharField(max_length=100)
+    referencia = models.CharField(max_length=255, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.calle} {self.numero}, {self.comuna}"
+
 class Empleado(models.Model):
     run = models.CharField(max_length=45, unique=True)
     fono = models.CharField(max_length=20, unique=True)
     direccion = models.CharField(max_length=200)
     cargo = models.CharField(max_length=45)
-
     usuario = models.OneToOneField(User, on_delete=models.CASCADE)
+
     def __str__(self):
         return f"{self.usuario.first_name} {self.usuario.last_name}"
 
-# Venta
+# ==========================================
+# 4. E-COMMERCE (CARRITO)
+# ==========================================
+
+class Carrito(models.Model):
+    """Temporal, antes de convertirse en Venta"""
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, null=True, blank=True)
+    session_key = models.CharField(max_length=40, null=True, blank=True) 
+    creado = models.DateTimeField(auto_now_add=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+class ItemCarrito(models.Model):
+    carrito = models.ForeignKey(Carrito, related_name='items', on_delete=models.CASCADE)
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    cantidad = models.IntegerField(default=1)
+    
+    def subtotal(self):
+        return self.producto.precio_venta * self.cantidad
+
+# ==========================================
+# 5. VENTAS Y FACTURACIÓN
+# ==========================================
+
 class Venta(models.Model):
-    CANAL_VENTA_CHOICES = [
-        ('presencial', 'Presencial'),
-        ('delivery', 'Delivery'),
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente de Pago'),
+        ('pagado', 'Pagado / En Preparación'),
+        ('en_camino', 'En Camino'),
+        ('entregado', 'Entregado'),
+        ('cancelado', 'Cancelado'),
     ]
-    fecha = models.DateTimeField()
-    total_sin_iva = models.DecimalField(max_digits=10, decimal_places=2)
-    total_iva = models.DecimalField(max_digits=10, decimal_places=2)
-    descuento = models.DecimalField(max_digits=10, decimal_places=2)
-    total_con_iva = models.DecimalField(max_digits=10, decimal_places=2)
-    canal_venta = models.CharField(max_length=20, choices=CANAL_VENTA_CHOICES)
-    folio = models.CharField(max_length=20, null=True, blank=True)
+    CANAL_CHOICES = [('pos', 'Punto de Venta'), ('web', 'E-commerce')]
+    DOC_CHOICES = [('boleta', 'Boleta'), ('factura', 'Factura')]
+
+    fecha = models.DateTimeField(auto_now_add=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True)
     empleado = models.ForeignKey(Empleado, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Logística
+    canal_venta = models.CharField(max_length=10, choices=CANAL_CHOICES, default='pos')
+    direccion_despacho = models.ForeignKey(Direccion, on_delete=models.SET_NULL, null=True, blank=True)
+    costo_envio = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Totales (Se guardan fijos para historial, por si cambia el precio del producto después)
+    neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    iva = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Estado y Documento
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
+    tipo_documento = models.CharField(max_length=20, choices=DOC_CHOICES, default='boleta')
+    folio_documento = models.CharField(max_length=50, null=True, blank=True, help_text="Folio SII")
 
-# Detalle de cada producto vendido
+    def __str__(self):
+        return f"Venta #{self.id} - {self.total}"
+
 class DetalleVenta(models.Model):
-    cantidad = models.IntegerField()
-    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
-    descuento_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name='detalles')
     producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
-
+    cantidad = models.IntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2) # Precio al momento de la venta
+    descuento = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    def subtotal(self):
+        return (self.cantidad * self.precio_unitario) - self.descuento
 
 class Pago(models.Model):
-    METODO_CHOICES = [
-        ('EFE', 'Efectivo'),
-        ('DEB', 'Débito'),
-        ('CRE', 'Crédito'),
-    ]
-    
+    METODO_CHOICES = [('EFE', 'Efectivo'), ('DEB', 'Débito'), ('CRE', 'Crédito'), ('TRA', 'Transferencia')]
     venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name='pagos')
     monto = models.DecimalField(max_digits=10, decimal_places=2)
     metodo = models.CharField(max_length=3, choices=METODO_CHOICES)
-    referencia = models.CharField(max_length=50, null=True, blank=True, help_text="Nro Operación Transbank")
+    referencia_externa = models.CharField(max_length=100, null=True, blank=True, help_text="ID Transbank/Stripe")
     fecha = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"Pago {self.monto} ({self.get_metodo_display()})"
+# ==========================================
+# 6. TRAZABILIDAD (KARDEX)
+# ==========================================
 
-# Movimiento de inventario
 class MovimientoInventario(models.Model):
-    TIPO_MOVIMIENTO_CHOICES = [
-        ('entrada', 'Entrada'),
-        ('salida', 'Salida'),
-    ]
-    tipo_movimiento = models.CharField(max_length=10, choices=TIPO_MOVIMIENTO_CHOICES)
-    cantidad = models.IntegerField()
-    fecha = models.DateTimeField()
+    """
+    Registra CADA entrada o salida relacionando Lotes.
+    Es la "verdad" contable del inventario.
+    """
+    TIPO_CHOICES = [('entrada', 'Entrada (Compra)'), ('salida', 'Salida (Venta)'), ('merma', 'Merma/Ajuste')]
+    
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    lote = models.ForeignKey(Lote, on_delete=models.CASCADE) # De qué lote salió o entró
+    cantidad = models.IntegerField() # Positivo entrada, Negativo salida
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
+    
+    referencia = models.CharField(max_length=100, help_text="ID Venta o Nro Factura Proveedor")
+    fecha = models.DateTimeField(auto_now_add=True)
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
-# Turno de trabajo
+
+class Alerta(models.Model):
+    # Asegúrate de que esta clase exista y tenga al menos un campo
+    TIPO_CHOICES = [('stock_bajo', 'Stock Bajo'), ('vencimiento', 'Próximo a Vencer')]
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    mensaje = models.CharField(max_length=255)
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    resuelto = models.BooleanField(default=False)
+    producto = models.ForeignKey('Producto', on_delete=models.CASCADE, null=True, blank=True)
+    lote = models.ForeignKey('Lote', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    def __str__(self):
+        return f"{self.tipo}: {self.mensaje}"
+    
+    # Turno de trabajo
+
 class Turno(models.Model):
     empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name='turnos')
     fecha = models.DateField()
     hora_entrada = models.TimeField()
     hora_salida = models.TimeField()
+    monto_inicial_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    monto_final_caja = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
+
         return f"Turno de {self.empleado} el {self.fecha}"
+    
+# ==========================================
+# 7. LOGICA AUTOMÁTICA (SIGNALS)
+# ==========================================
+
+@receiver(post_save, sender=Lote)
+@receiver(post_save, sender=MovimientoInventario)
+def actualizar_stock_producto(sender, instance, **kwargs):
+    """
+    Cada vez que se toca un lote o un movimiento, 
+    se recalcula el stock total del producto y se guarda en caché.
+    """
+    producto = instance.producto
+    total = Lote.objects.filter(producto=producto, eliminado__isnull=True).aggregate(
+        total=Sum('stock_actual')
+    )['total'] or 0
+    
+    # Solo guardar si hubo cambio para evitar recursión infinita innecesaria
+    if producto.stock_fisico != total:
+        producto.stock_fisico = total
+        producto.save(update_fields=['stock_fisico'])

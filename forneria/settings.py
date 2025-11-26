@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'dj_rest_auth', 
     'pos',
     'inventario',
+    'pedido'
 ]
 
 MIDDLEWARE = [

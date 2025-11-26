@@ -7,13 +7,17 @@ from drf_spectacular.views import (
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('pos/', include('pos.urls')),
     path('api/auth/', include('dj_rest_auth.urls')),  # login/logout con JWT
-
+    path('inventario/', include('inventario.urls')),
+    path('pedidos/', include('pedido.urls')),
+    path('pos/', include('pos.urls')),
+    path('',include('landing.urls')),
+    path('reporte/', include('reportes.urls')),
+    
     # Esquema OpenAPI
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
 
-    # Documentación ReDoc
+    # Documentación ReDoc, esta wea no sirve mucho que digamos, hasta lo deprecaron asi que se puede sacar
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
 
