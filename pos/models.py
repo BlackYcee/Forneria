@@ -26,6 +26,9 @@ class Producto(models.Model):
     presentacion = models.CharField(max_length=100, null=True, blank=True)
     categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT)
     
+    # COSTO PARA ANÁLISIS FINANCIERO
+    costo_unitario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Costo promedio o actual del producto para análisis de rentabilidad")
+    
     # OPTIMIZACIÓN DE RENDIMIENTO
     # Este campo se actualiza solo (via señales) para no calcular sumas cada vez
     stock_fisico = models.IntegerField(default=0, db_index=True) 
@@ -404,7 +407,7 @@ class GastoOperativo(models.Model):
     descripcion = models.CharField(max_length=255)
     monto = models.DecimalField(max_digits=10, decimal_places=2)
     fecha = models.DateField()
-    fecha_registro = models.DateTimeField(auto_now_add=True)
+    creado = models.DateTimeField(auto_now_add=True)
     es_recurrente = models.BooleanField(default=False, help_text="Si es un gasto mensual fijo")
 
     class Meta:
