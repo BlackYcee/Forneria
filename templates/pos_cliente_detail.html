@@ -1,4 +1,4 @@
-{% extends "basepos.html" %}
+{% extends "pos/basepos.html" %}
 {% load static %}
 {% load currency %}
 
@@ -18,9 +18,9 @@
     <tbody>
       {% for v in ventas %}
       <tr>
-        <td>{{ v.folio }}</td>
+        <td>{{ v.folio_documento }}</td>
         <td>{{ v.fecha|date:"Y-m-d H:i" }}</td>
-        <td>{{ v.total_con_iva|clp }}</td>
+        <td>{{ v.total|clp }}</td>
         <td>{{ v.monto_pagado|default:'-'|clp }}</td>
         <td>{{ v.vuelto|default:'-'|clp }}</td>
         <td>{{ v.canal_venta }}</td>

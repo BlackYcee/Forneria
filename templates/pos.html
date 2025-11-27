@@ -1,4 +1,4 @@
-{% extends "basepos.html" %}
+{% extends "pos/basepos.html" %}
 {% load static currency %}
 
 {% block content  %}
@@ -29,14 +29,14 @@
     <!-- Tarjetas de productos -->
     <div class="containercartas">
         {% for producto in page_obj %}
-            <div class="card" data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}" data-precio="{{ producto.precio|floatformat:0 }}">
+            <div class="card" data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}" data-precio="{{ producto.precio_venta|floatformat:0 }}">
                 <div class="w3-container w3-center">
                     <h2>{{ producto.nombre }}</h2>
                     <p style="font-size:0.85rem; color:#666;">Código de barra: {{ producto.codigo_barra|default:'None' }}</p>
                     <p style="font-size:0.9rem;">Stock disponible: <strong>{{ producto.stock_total }}</strong></p>
-                    <p style="margin-top:6px;">Precio: <span class="precio">{{ producto.precio|floatformat:0|clp }}</span></p>
+                    <p style="margin-top:6px;">Precio: <span class="precio">{{ producto.precio_venta|floatformat:0|clp }}</span></p>
                     <div class="card-actions">
-                        <button class="button1 add-to-cart" data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}" data-precio="{{ producto.precio|floatformat:0 }}">Agregar al carrito</button>
+                        <button class="button1 add-to-cart" data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}" data-precio="{{ producto.precio_venta|floatformat:0 }}">Agregar al carrito</button>
                         <button class="btn-secondary view-detail" data-id="{{ producto.id }}">Ver detalle</button>
                     </div>
                 </div>

@@ -42,14 +42,14 @@
             <div class="row">
                 {% for producto in page_obj %}
                     <div class="col-md-4 mb-4">
-                        <div class="card h-100 shadow-sm" data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}" data-precio="{{ producto.precio }}">
+                        <div class="card h-100 shadow-sm" data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}" data-precio="{{ producto.precio_venta }}">
                             <div class="card-body text-center">
                                 <h5 class="card-title">{{ producto.nombre }}</h5>
                                 <p class="text-muted">Código: {{ producto.codigo_barra|default:"-" }}</p>
                                 <p>Stock: <span class="fw-bold">{{ producto.stock_total }}</span></p>
-                                <p class="text-success">Precio: ${{ producto.precio|floatformat:0 }}</p>
+                                <p class="text-success">Precio: ${{ producto.precio_venta|floatformat:0 }}</p>
                                 <div class="d-grid gap-2">
-                                    <button class="btn btn-primary add-to-cart" data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}" data-precio="{{ producto.precio }}">Agregar</button>
+                                    <button class="btn btn-primary add-to-cart" data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}" data-precio="{{ producto.precio_venta }}">Agregar</button>
                                     <button class="btn btn-outline-secondary view-detail" data-id="{{ producto.id }}">Ver detalle</button>
                                 </div>
                             </div>

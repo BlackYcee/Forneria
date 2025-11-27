@@ -76,9 +76,9 @@ WSGI_APPLICATION = 'forneria.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'forneria',
+        'NAME': 'forneria_github',
         'USER': 'root',
-        'PASSWORD': 'REACH',  
+        'PASSWORD': '',  
         'HOST': '127.0.0.1',
         'PORT': '3306',
         'OPTIONS': {

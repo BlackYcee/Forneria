@@ -1,7 +1,7 @@
 from django.urls import path,include
 from django.contrib.auth.decorators import login_required
-from rest_framework import routers
-from dj_rest_auth.views import LoginView
+from rest_framework.routers import DefaultRouter
+from dj_rest_auth.views import LoginView, LogoutView
 from . import views
 
 router = DefaultRouter()
@@ -44,7 +44,7 @@ urlpatterns = [
     path("inventario/lote/<int:pk>/edit/", login_required(views.lote_edit), name='lote_edit'),
     path("inventario/lote/<int:pk>/delete/", login_required(views.lote_delete), name='lote_delete'),
     # Server time endpoint used by POS frontend to display server timestamp in modal
-    path("server-time/", views.server_time, name='server_time'),
+    # path("server-time/", views.server_time, name='server_time'),  # COMENTADO: view no existe
     path("pedidos/", login_required(views.pedidos_page), name='pedidos'),
     path("clientes/", login_required(views.clientes_page), name='clientes'),
     path("clientes/<str:rut>/", login_required(views.cliente_detail), name='cliente_detail'),
@@ -55,13 +55,9 @@ urlpatterns = [
     # Rutas de autenticación (dj-rest-auth)
     path('auth/login/', LoginView.as_view(), name='rest_login'),
     path('auth/logout/', LogoutView.as_view(), name='rest_logout'),
-    
-    path('vender/', views.VentaCreateAPIView.as_view(), name='venta-crear-segura'),
 
-    # Rutas para reportes 
+    # path('vender/', views.VentaCreateAPIView.as_view(), name='venta-crear-segura'),  # COMENTADO: view no existe
+
+    # Rutas para reportes
     path('reportes/stock-bajo/', views.ProductosStockBajoList.as_view(), name='reporte-stock-bajo'),
-]
-
-urlpatterns = [
-    path('api/', include(router.urls)),
 ]

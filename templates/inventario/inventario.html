@@ -95,7 +95,7 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const PRODUCTOS_API_URL = 'http://127.0.0.1:8000/api/productos/'; 
+    const PRODUCTOS_API_URL = 'http://127.0.0.1:8001/pos/productos/'; 
     const tableBody = document.getElementById('inventory-table-body');
     const productForm = document.getElementById('productForm');
     const createEditModalElement = document.getElementById('createEditModal');
@@ -134,11 +134,12 @@ document.addEventListener("DOMContentLoaded", () => {
             products.forEach(product => {
                 const totalStock = product.stock_total || 0;
                 const categoryName = getCategoryName(product.categoria);
+                const precio = product.precio_venta ? parseFloat(product.precio_venta).toFixed(2) : '0.00';
                 const row = tableBody.insertRow();
                 row.innerHTML = `
                     <td>${product.id}</td>
                     <td>${product.nombre}</td>
-                    <td>$${parseFloat(product.precio).toFixed(2)}</td>
+                    <td>$${precio}</td>
                     <td>${categoryName}</td>
                     <td>${totalStock}</td>
                     <td>
@@ -204,7 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 // Producto
                 document.getElementById('product-id').value = productData.id;
                 document.getElementById('id_nombre').value = productData.nombre || '';
-                document.getElementById('id_precio').value = productData.precio || '';
+                document.getElementById('id_precio').value = productData.precio_venta || '';
                 document.getElementById('id_categoria').value = productData.categoria;
 
                 // Nutricional

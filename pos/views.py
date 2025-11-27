@@ -38,6 +38,20 @@ from .forms import ProductoForm, LoteForm
 from .services import procesar_venta
 # Create your views here.
 
+@api_view(['GET'])
+def server_time(request):
+    """Return current server time in ISO and a human formatted string (es-CL).
+
+    This endpoint is used by the POS frontend to show a server-based timestamp
+    when confirming a sale.
+    """
+    now = timezone.now()
+    try:
+        formatted = now.astimezone(timezone.get_current_timezone()).strftime('%d/%m/%Y %H:%M')
+    except Exception:
+        formatted = now.strftime('%Y-%m-%d %H:%M')
+    return Response({'now': now.isoformat(), 'formatted': formatted})
+
 #API REST
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
@@ -328,38 +342,42 @@ def dashboard(request):
     """Dashboard simple: totales por día y por mes para los últimos 60 días."""
     # Totales por día (últimos 60 días)
     from django.utils import timezone
+    from django.db.models import Value, CharField
+    from django.db.models.functions import Concat, ExtractYear, ExtractMonth, ExtractDay, Substr
+    
     hoy = timezone.now()
     fecha_inicio = hoy - timezone.timedelta(days=60)
 
     ventas_qs = Venta.objects.filter(fecha__gte=fecha_inicio)
 
+    # Usar DATE() de SQL directamente para MySQL
     por_dia = (
         ventas_qs
-        .annotate(dia=TruncDate('fecha'))
+        .extra(select={'dia': 'DATE(fecha)'})
         .values('dia')
-        .annotate(total=Sum('total_con_iva'))
+        .annotate(total=Sum('total'))
         .order_by('dia')
     )
 
     por_mes = (
         Venta.objects
-        .annotate(mes=TruncMonth('fecha'))
+        .extra(select={'mes': 'DATE_FORMAT(fecha, "%%Y-%%m-01")'})
         .values('mes')
-        .annotate(total=Sum('total_con_iva'))
+        .annotate(total=Sum('total'))
         .order_by('mes')
     )
 
     # Convertir QuerySets a listas serializables
-    dias = [ { 'dia': r['dia'].isoformat(), 'total': float(r['total'] or 0) } for r in por_dia ]
-    meses = [ { 'mes': r['mes'].date().isoformat(), 'total': float(r['total'] or 0) } for r in por_mes ]
+    dias = [ { 'dia': str(r['dia']) if r['dia'] else '', 'total': float(r['total'] or 0) } for r in por_dia ]
+    meses = [ { 'mes': str(r['mes']) if r['mes'] else '', 'total': float(r['total'] or 0) } for r in por_mes ]
 
     # KPIs simples (últimos 30 días + hoy)
     fecha_30 = hoy - timezone.timedelta(days=30)
     ventas_30_qs = Venta.objects.filter(fecha__gte=fecha_30)
 
-    total_ingresos_30 = ventas_30_qs.aggregate(s=Sum('total_con_iva'))['s'] or 0
+    total_ingresos_30 = ventas_30_qs.aggregate(s=Sum('total'))['s'] or 0
     total_ventas_30 = ventas_30_qs.aggregate(c=Count('id'))['c'] or 0
-    promedio_venta_30 = ventas_30_qs.aggregate(a=Avg('total_con_iva'))['a'] or 0
+    promedio_venta_30 = ventas_30_qs.aggregate(a=Avg('total'))['a'] or 0
 
     ventas_hoy = Venta.objects.filter(fecha__date=hoy.date()).aggregate(c=Count('id'))['c'] or 0
 
@@ -477,8 +495,28 @@ def lote_delete(request, pk):
 
 
 def clientes_page(request):
-    clientes = Cliente.objects.all().order_by('nombre')[:200]
-    return render(request, 'pos_clientes.html', {'clientes': clientes})
+    """Página de clientes con filtros por RUT y nombre."""
+    rut = request.GET.get('rut', '').strip()
+    nombre = request.GET.get('nombre', '').strip()
+    
+    qs = Cliente.objects.all().order_by('nombre')
+    
+    if rut:
+        qs = qs.filter(rut__icontains=rut)
+    if nombre:
+        qs = qs.filter(nombre__icontains=nombre)
+    
+    # Paginación
+    page_number = request.GET.get('page', 1)
+    paginator = Paginator(qs, 50)
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'pos_clientes.html', {
+        'clientes': page_obj.object_list,
+        'page_obj': page_obj,
+        'filter_rut': rut,
+        'filter_nombre': nombre
+    })
 
 
 def pedidos_page(request):

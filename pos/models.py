@@ -307,14 +307,15 @@ class Pago(models.Model):
 # ==========================================
 
 # Registro de pagos asociados a una venta
-class Pago(models.Model):
-    venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name='pagos')
-    monto = models.DecimalField(max_digits=10, decimal_places=2)
-    metodo = models.CharField(max_length=50, null=True, blank=True)
-    fecha = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Pago {self.id} - {self.monto}"
+# COMENTADO: Definición duplicada de Pago (la primera definición ya tiene METODO_CHOICES)
+# class Pago(models.Model):
+#     venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name='pagos')
+#     monto = models.DecimalField(max_digits=10, decimal_places=2)
+#     metodo = models.CharField(max_length=50, null=True, blank=True)
+#     fecha = models.DateTimeField(auto_now_add=True)
+#
+#     def __str__(self):
+#         return f"Pago {self.id} - {self.monto}"
 
 
 # Movimiento de inventario
