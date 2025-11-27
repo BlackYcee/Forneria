@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% load static %}
+{% load group_tags %}
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -27,13 +28,29 @@
                 </div>
 
                 <ul class="nav flex-column px-3 flex-grow-1">
-                    <li class="nav-item"><a class="nav-link text-white" href="#">Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link text-white" href="{% url 'inicio' %}">Ventas</a></li>
-                    <li class="nav-item"><a class="nav-link text-white" href="{% url 'inventario_list' %}">Inventario</a></li>
-                    <li class="nav-item"><a class="nav-link text-white" >Pedidos</a></li>
-                    <li class="nav-item"><a class="nav-link text-white" href="#">Clientes</a></li>
-                    <li class="nav-item"><a class="nav-link text-white" href="#">Reportes</a></li>
-                    <li class="nav-item"><a class="nav-link text-white" href="#">Configuración</a></li>
+                    {% if user.is_authenticated %}
+                        {% if user|in_group:"Administrador" or user.is_superuser %}
+                            <li class="nav-item"><a class="nav-link text-white" href="{% url 'dashboard' %}">Dashboard</a></li>
+                            <li class="nav-item"><a class="nav-link text-white" href="{% url 'ventas' %}">Ventas</a></li>
+                            <li class="nav-item"><a class="nav-link text-white" href="{% url 'inventario' %}">Inventario</a></li>
+                            <li class="nav-item"><a class="nav-link text-white" href="{% url 'pedidos' %}">Pedidos</a></li>
+                            <li class="nav-item"><a class="nav-link text-white" href="{% url 'clientes' %}">Clientes</a></li>
+                            <li class="nav-item"><a class="nav-link text-white" href="{% url 'reportes' %}">Reportes</a></li>
+                            <li class="nav-item"><a class="nav-link text-white" href="#">Configuración</a></li>
+                        {% elif user|in_group:"Vendedor" %}
+                            <li class="nav-item"><a class="nav-link text-white" href="{% url 'inicio' %}">Punto de venta</a></li>
+                            <li class="nav-item"><a class="nav-link text-white" href="{% url 'pedidos' %}">Pedidos</a></li>
+                            <li class="nav-item"><a class="nav-link text-white" href="{% url 'inventario' %}">Inventario</a></li>
+                            <li class="nav-item"><a class="nav-link text-white" href="{% url 'ventas' %}">Ventas</a></li>
+                        {% elif user|in_group:"Cliente" %}
+                            <li class="nav-item"><a class="nav-link text-white" href="{% url 'inicio' %}">Punto de venta</a></li>
+                        {% else %}
+                            <!-- Usuarios autenticados sin grupo: acceso limitado al POS -->
+                            <li class="nav-item"><a class="nav-link text-white" href="{% url 'inicio' %}">Punto de venta</a></li>
+                        {% endif %}
+                    {% else %}
+                        <li class="nav-item"><a class="nav-link text-white" href="{% url 'login' %}">Iniciar sesión</a></li>
+                    {% endif %}
                 </ul>
 
                 <div class="mt-auto text-center p-3">

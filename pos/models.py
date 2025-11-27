@@ -306,6 +306,18 @@ class Pago(models.Model):
 # 6. TRAZABILIDAD (KARDEX)
 # ==========================================
 
+# Registro de pagos asociados a una venta
+class Pago(models.Model):
+    venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name='pagos')
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    metodo = models.CharField(max_length=50, null=True, blank=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Pago {self.id} - {self.monto}"
+
+
+# Movimiento de inventario
 class MovimientoInventario(models.Model):
     """
     Registra CADA entrada o salida relacionando Lotes.
