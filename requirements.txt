@@ -4,10 +4,14 @@ certifi==2025.10.5
 charset-normalizer==3.4.4
 coreapi==2.3.3
 coreschema==0.0.4
+dj-rest-auth==7.0.1
 Django==5.2.8
 django-filter==23.5
 djangorestframework==3.16.1
 dj-rest-auth==5.0.2
+django-allauth==65.13.1
+djangorestframework==3.16.1
+djangorestframework_simplejwt==5.5.1
 drf-spectacular==0.29.0
 idna==3.11
 inflection==0.5.1
@@ -18,6 +22,7 @@ jsonschema-specifications==2025.9.1
 MarkupSafe==3.0.3
 mysqlclient==2.2.7
 python-dateutil==2.8.2
+PyJWT==2.10.1
 PyYAML==6.0.3
 referencing==0.37.0
 requests==2.32.5
