@@ -542,9 +542,9 @@ def cliente_detail(request, rut):
         filename = f"ventas_{cliente.rut}.csv"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         writer = csv.writer(response)
-        writer.writerow(['folio', 'fecha', 'total_con_iva', 'monto_pagado', 'vuelto', 'canal_venta'])
+        writer.writerow(['folio', 'fecha', 'total', 'monto_pagado', 'vuelto', 'canal_venta'])
         for v in ventas_qs:
-            writer.writerow([v.folio, v.fecha.isoformat(), str(v.total_con_iva), str(v.monto_pagado or ''), str(v.vuelto or ''), v.canal_venta])
+            writer.writerow([v.folio, v.fecha.isoformat(), str(v.total), str(v.monto_pagado or ''), str(v.vuelto or ''), v.canal_venta])
         return response
 
     # paginación de compras del cliente
@@ -617,13 +617,10 @@ def checkout(request):
         with transaction.atomic():
             venta = Venta.objects.create(
                 fecha=timezone.now(),
-                total_sin_iva=total_sin_iva,
-                total_iva=total_iva,
-                descuento=descuento_total.quantize(Decimal('0.01')),
-                total_con_iva=total_con_iva,
-                canal_venta=canal,
-                monto_pagado=monto_pagado_dec,
-                vuelto=vuelto
+                neto=total_sin_iva,
+                iva=total_iva,
+                total=total_con_iva,
+                canal_venta=canal
             )
 
             # si viene cliente_rut, enlazar cliente
@@ -666,8 +663,8 @@ def checkout(request):
         resp = {
             'id': venta.id,
             'folio': venta.folio,
-            'total_con_iva': str(venta.total_con_iva),
-            'vuelto': str(venta.vuelto) if venta.vuelto is not None else None
+            'total': str(venta.total),
+            'vuelto': str(vuelto) if vuelto is not None else None
         }
         return Response(resp, status=status.HTTP_201_CREATED)
 

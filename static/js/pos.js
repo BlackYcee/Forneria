@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
         // éxito
-        alert(`Venta registrada. Folio: ${data.folio} - Total: ${formatCLP(data.total_con_iva)}${data.vuelto ? ' - Vuelto: ' + formatCLP(data.vuelto) : ''}`);
+        alert(`Venta registrada. Folio: ${data.folio} - Total: ${formatCLP(data.total)}${data.vuelto ? ' - Vuelto: ' + formatCLP(data.vuelto) : ''}`);
         clearCart();
         document.getElementById('cartModal').style.display = 'none';
       } catch (err) {
