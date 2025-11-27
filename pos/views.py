@@ -36,6 +36,8 @@ from .models import (
 )
 from .forms import ProductoForm, LoteForm
 from .services import procesar_venta
+from django.utils.text import slugify
+from django.contrib.staticfiles import finders
 # Create your views here.
 
 @api_view(['GET'])
@@ -201,7 +203,9 @@ def inicio(request):
 
         # Convertir a lista de dicts tal como la plantilla espera (campos mínimos)
         productos = []
-        for p in productos_qs:
+        # lista de imágenes disponibles para asignar por rotación si no hay coincidencia exacta
+        fallback_images = ['ensalada.jpg','panini.jpg','ciabata.jpg','integral.jpg','masa_madre.jpg','canela.jpg','lasagna.jpg','pasta.jpg','pescado.jpg']
+        for idx, p in enumerate(productos_qs):
             productos.append({
                 'id': p.id,
                 'nombre': p.nombre,
@@ -321,15 +325,75 @@ def landing(request):
         categorias = [{'id': c.id, 'nombre': c.nombre} for c in categorias_qs]
         productos = []
         for p in productos_qs:
+            # Determinar imagen estática disponible para este producto probando varias rutas
+            nombre_slug = slugify(p.nombre or '')
+            candidates = [
+                f"images/landing_forneria/{nombre_slug}.jpg",
+                f"images/{nombre_slug}.jpg",
+                f"images/landing_forneria/{p.nombre}.jpg",
+                f"images/{p.nombre}.jpg",
+            ]
+            found = None
+            for c in candidates:
+                try:
+                    if finders.find(c):
+                        found = c
+                        break
+                except Exception:
+                    continue
+            if not found:
+                # asignar por rotación una imagen del conjunto disponible
+                try:
+                    candidate_img = fallback_images[idx % len(fallback_images)]
+                    candidate_path = f'images/landing_forneria/{candidate_img}'
+                    if finders.find(candidate_path):
+                        found = candidate_path
+                    else:
+                        found = 'images/PHOTO.jpg'
+                except Exception:
+                    found = 'images/PHOTO.jpg'
+
             productos.append({
                 'id': p.id,
                 'nombre': p.nombre,
                 'codigo_barra': p.codigo_barra,
-                'precio': float(p.precio) if p.precio is not None else 0,
+                'precio': float(p.precio) if p.precio is not None else None,
                 'stock_total': p.stock_total(),
                 # pasar id y nombre de la categoría para permitir enlaces/filtrado en la plantilla
                 'categoria': {'id': p.categoria.id, 'nombre': p.categoria.nombre} if p.categoria else None,
+                'imagen': found,
             })
+
+        # Lista curada (orden y nombres) basada en las imágenes presentes en static/images/landing_forneria
+        curated = [
+            {'nombre': 'Bowl Ensalada', 'imagen': 'images/landing_forneria/ensalada.jpg', 'descripcion': 'Mix de hojas frescas con aderezo especial.'},
+            {'nombre': 'Panini Artesanal', 'imagen': 'images/landing_forneria/panini.jpg', 'descripcion': 'Pan italiano tradicional.'},
+            {'nombre': 'Ciabata', 'imagen': 'images/landing_forneria/ciabata.jpg', 'descripcion': 'Pan rústico italiano.'},
+            {'nombre': 'Pan Integral', 'imagen': 'images/landing_forneria/integral.jpg', 'descripcion': 'Rico en fibra, elaborado con granos enteros y semillas.'},
+            {'nombre': 'Pan de Masa Madre', 'imagen': 'images/landing_forneria/masa_madre.jpg', 'descripcion': 'Fermentación natural de 24 horas para un sabor único.'},
+            {'nombre': 'Rollos de Canela', 'imagen': 'images/landing_forneria/canela.jpg', 'descripcion': 'Pan dulce glaseado con azúcar de canela.'},
+            {'nombre': 'Lasagnas Caseras', 'imagen': 'images/landing_forneria/lasagna.jpg', 'descripcion': ''},
+            {'nombre': 'Pastas italianas', 'imagen': 'images/landing_forneria/pasta.jpg', 'descripcion': ''},
+            {'nombre': 'Pescados y Mariscos', 'imagen': 'images/landing_forneria/pescado.jpg', 'descripcion': ''},
+        ]
+
+        # Si la BD no contiene productos de la forneria (o no coincide con la curación), usamos la lista curada
+        names_in_db = {p['nombre'].lower() for p in productos}
+        curated_names = {c['nombre'].lower() for c in curated}
+        # si no hay intersección suficiente, sustituimos
+        if len(products_intersection := (names_in_db & curated_names)) < 3:
+            productos = []
+            for c in curated:
+                productos.append({
+                    'id': None,
+                    'nombre': c['nombre'],
+                    'codigo_barra': None,
+                    'precio': None,
+                    'stock_total': 0,
+                    'categoria': None,
+                    'imagen': c['imagen'],
+                    'descripcion': c.get('descripcion',''),
+                })
     except Exception:
         # fallback seguro
         categorias = []

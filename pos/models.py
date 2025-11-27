@@ -5,6 +5,7 @@ from django.db.models import Sum, F
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from datetime import date, datetime
+from decimal import Decimal, ROUND_HALF_UP
 # ==========================================
 # 1. CATALOGO Y PRODUCTOS
 # ==========================================
@@ -38,7 +39,14 @@ class Producto(models.Model):
         return f"{self.nombre} ({self.stock_fisico})"
 
     def precio_con_iva(self, iva=0.19):
-        return self.precio_venta * (1 + iva)
+        """Devuelve el precio incluyendo IVA. Usa Decimal para evitar mezclar tipos."""
+        try:
+            iva_dec = Decimal(str(iva))
+        except Exception:
+            iva_dec = Decimal('0.19')
+        precio = self.precio_venta if self.precio_venta is not None else Decimal('0')
+        result = (precio * (Decimal(1) + iva_dec)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return result
     
     def stock_total(self):
         """Suma el stock_actual de todos los lotes asociados."""
