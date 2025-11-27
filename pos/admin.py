@@ -142,20 +142,8 @@ class EmpleadoAdmin(admin.ModelAdmin):
     search_fields = ('usuario__first_name', 'usuario__last_name', 'run')
     list_filter = ('cargo',)
 
+# Registro simple de modelos sin configuración especial
 admin.site.register(Categoria)
 admin.site.register(Nutricional)
 admin.site.register(Alerta)
 admin.site.register(Turno)
-
-# Registro de modelos de E-commerce
-class ItemCarritoInline(admin.TabularInline):
-    model = ItemCarrito
-    extra = 0
-    readonly_fields = ['producto', 'cantidad', 'subtotal']
-
-@admin.register(Carrito)
-class CarritoAdmin(admin.ModelAdmin):
-    list_display = ('cliente', 'session_key', 'creado', 'actualizado')
-    inlines = [ItemCarritoInline]
-    readonly_fields = ('creado', 'actualizado')
-    search_fields = ('cliente__nombre', 'session_key')

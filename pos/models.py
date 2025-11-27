@@ -382,3 +382,35 @@ def actualizar_stock_producto(sender, instance, **kwargs):
     if producto.stock_fisico != total:
         producto.stock_fisico = total
         producto.save(update_fields=['stock_fisico'])
+
+# ==========================================
+# 8. GASTOS OPERATIVOS
+# ==========================================
+
+class GastoOperativo(models.Model):
+    TIPO_GASTO_CHOICES = [
+        ('alquiler', 'Alquiler'),
+        ('servicios', 'Servicios (luz, agua, gas)'),
+        ('salarios', 'Salarios'),
+        ('marketing', 'Marketing y Publicidad'),
+        ('mantenimiento', 'Mantenimiento'),
+        ('suministros', 'Suministros'),
+        ('transporte', 'Transporte'),
+        ('impuestos', 'Impuestos y Licencias'),
+        ('otro', 'Otro'),
+    ]
+
+    tipo_gasto = models.CharField(max_length=20, choices=TIPO_GASTO_CHOICES)
+    descripcion = models.CharField(max_length=255)
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    fecha = models.DateField()
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    es_recurrente = models.BooleanField(default=False, help_text="Si es un gasto mensual fijo")
+
+    class Meta:
+        verbose_name = "Gasto Operativo"
+        verbose_name_plural = "Gastos Operativos"
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.get_tipo_gasto_display()} - ${self.monto} ({self.fecha})"
