@@ -188,44 +188,46 @@ class DetalleVentaSerializer(serializers.ModelSerializer):
                 })
         return data
 
-class PagoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Pago
-        fields = '__all__'
-    def validate_monto(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("El monto del pago debe ser positivo.")
-        return value
+# TEMPORALMENTE COMENTADO - Modelo Pago no existe
+# class PagoSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Pago
+#         fields = '__all__'
+#     def validate_monto(self, value):
+#         if value <= 0:
+#             raise serializers.ValidationError("El monto del pago debe ser positivo.")
+#         return value
         
 class VentaSerializer(serializers.ModelSerializer):
     cliente_rut = serializers.CharField(write_only=True, required=False)
-    
+
     # Relaciones anidadas
-    detalles = DetalleVentaSerializer(many=True) 
-    pagos = PagoSerializer(many=True, required=False)
-    
-    # Campo calculado para el estado de pago
-    total_pagado = serializers.SerializerMethodField()
-    saldo_pendiente = serializers.SerializerMethodField()
+    detalles = DetalleVentaSerializer(many=True)
+    # pagos = PagoSerializer(many=True, required=False)  # COMENTADO - Modelo Pago no existe
+
+    # Campo calculado para el estado de pago - COMENTADO
+    # total_pagado = serializers.SerializerMethodField()
+    # saldo_pendiente = serializers.SerializerMethodField()
     
     class Meta:
         model = Venta
         fields = [
              'id', 'fecha', 'total_sin_iva', 'total_iva', 'descuento',
              'total_con_iva', 'canal_venta', 'folio',
-             'cliente', 'cliente_rut', 'empleado', 
-             'detalles', 'pagos', 'total_pagado', 'saldo_pendiente' 
+             'cliente', 'cliente_rut', 'empleado',
+             'detalles'  # , 'pagos', 'total_pagado', 'saldo_pendiente'  # COMENTADO
          ]
-        read_only_fields = ['cliente', 'empleado', 'total_pagado', 'saldo_pendiente']
+        read_only_fields = ['cliente', 'empleado']  # , 'total_pagado', 'saldo_pendiente'  # COMENTADO
         
         cliente_rut = serializers.CharField(write_only=True, required=False)
         
-    def get_total_pagado(self, obj):
-         return obj.pagos.aggregate(total=Sum('monto'))['total'] or 0
-     
-    def get_saldo_pendiente(self, obj):
-        total_pagado = self.get_total_pagado(obj)
-        return obj.total_con_iva - total_pagado
+    # COMENTADO - Modelo Pago no existe
+    # def get_total_pagado(self, obj):
+    #      return obj.pagos.aggregate(total=Sum('monto'))['total'] or 0
+
+    # def get_saldo_pendiente(self, obj):
+    #     total_pagado = self.get_total_pagado(obj)
+    #     return obj.total_con_iva - total_pagado
         
     def create(self, validated_data):
         rut = validated_data.pop('cliente_rut', None)
