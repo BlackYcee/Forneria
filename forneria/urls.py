@@ -1,22 +1,16 @@
 from django.contrib import admin
-from django.urls import path, include
-from django.views.generic import RedirectView
-from django.contrib.auth import views as auth_views
-from pos import views as pos_views
+from django.urls import path,include
+from inventario import views as inventario_views
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
 )
 
 urlpatterns = [
-    # Raíz -> landing pública
-    path('', pos_views.landing, name='landing'),
-    # Login / Logout (plantillas simples)
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
-    path('accounts/logout/', auth_views.LogoutView.as_view(next_page='/'), name='logout'),
     path('admin/', admin.site.urls),
-    path('api/auth/', include('dj_rest_auth.urls')),  # login/logout con JWT
+    path('api/auth/', include('dj_rest_auth.urls')),  
     path('analytics/', include('analytics.urls')),
+    path('dashboard/inventario/', inventario_views.dashboard_inventario_api, name='dashboard-inventario-api'),
     path('inventario/', include('inventario.urls')),
     path('pedidos/', include('pedido.urls')),
     path('pos/', include('pos.urls')),

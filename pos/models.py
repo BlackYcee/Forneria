@@ -168,14 +168,14 @@ class Direccion(models.Model):
         return f"{self.calle} {self.numero}, {self.comuna}"
 
 class Empleado(models.Model):
-    nombres = models.CharField(max_length=100)
-    apellido_paterno = models.CharField(max_length=45)
-    run = models.CharField(max_length=45, unique=True)
-    correo = models.EmailField(max_length=100)
-    fono = models.IntegerField(unique=True)
-    clave = models.CharField(max_length=100)
-    direccion = models.CharField(max_length=200)
-    cargo = models.CharField(max_length=45)
+    nombres = models.CharField(max_length=100, default='Sin nombre')
+    apellido_paterno = models.CharField(max_length=45, default='Sin apellido')
+    run = models.CharField(max_length=45, unique=True, default='00000000-0')
+    correo = models.EmailField(max_length=100, default='sin@correo.com')
+    fono = models.IntegerField(unique=True, default=0)
+    clave = models.CharField(max_length=100, default='cambiar123')
+    direccion = models.CharField(max_length=200, default='Sin dirección')
+    cargo = models.CharField(max_length=45, default='Empleado')
     usuario = models.OneToOneField(User, on_delete=models.CASCADE)
 
     def __str__(self):
@@ -365,7 +365,7 @@ class Turno(models.Model):
     empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name='turnos')
     fecha = models.DateField()
     hora_entrada = models.TimeField()
-    hora_salida = models.TimeField()
+    hora_salida = models.TimeField(null=True, blank=True)
     monto_inicial_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     monto_final_caja = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
