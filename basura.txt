@@ -1,0 +1,7 @@
+<!--<li class="nav-item"><a class="nav-link text-white" href="{% url 'dashboard' %}">Dashboard</a></li>-->
+                    <li class="nav-item"><a class="nav-link text-white" href="{% url 'ventas' %}">Ventas</a></li>
+                    <li class="nav-item"><a class="nav-link text-white" href="{% url 'inventario' %}">Inventario</a></li>
+                    <li class="nav-item"><a class="nav-link text-white" href="{% url 'pedidos' %}">Pedidos</a></li>
+                    <li class="nav-item"><a class="nav-link text-white" href="{% url 'clientes' %}">Clientes</a></li>
+                    <li class="nav-item"><a class="nav-link text-white" href="{% url 'reportes' %}">Reportes</a></li>
+                    <li class="nav-item"><a class="nav-link text-white" href="#">Configuración</a></li>-->
