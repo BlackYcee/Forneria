@@ -266,7 +266,26 @@ class ClienteViewSet(viewsets.ModelViewSet):
 class EmpleadoViewSet(viewsets.ModelViewSet):
     queryset = Empleado.objects.all()
     serializer_class = EmpleadoSerializer
-    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        # Permitir crear empleados sin autenticación (registro)
+        if self.action == 'create':
+            return []
+        # Requiere autenticación para listar, ver, actualizar y eliminar
+        return [IsAuthenticated()]
+    
+    def destroy(self, request, *args, **kwargs):
+        """Eliminar empleado y su usuario asociado"""
+        empleado = self.get_object()
+        user = empleado.usuario
+        
+        # Eliminar el empleado (esto también eliminará el usuario por CASCADE)
+        response = super().destroy(request, *args, **kwargs)
+        
+        return Response(
+            {'message': 'Empleado eliminado exitosamente'},
+            status=status.HTTP_200_OK
+        )
 
 class TurnoViewSet(viewsets.ModelViewSet):
     queryset = Turno.objects.all()
@@ -477,13 +496,21 @@ class VentaViewSet(viewsets.ModelViewSet):
             cliente_obj = Cliente.objects.get(id=data.get('cliente_id')) if data.get('cliente_id') else None
             direccion_obj = Direccion.objects.get(id=data.get('direccion_id')) if data.get('direccion_id') else None
             
+            if not pagos_info:
+                return Response({'error': 'Debe incluir al menos un pago'}, status=status.HTTP_400_BAD_REQUEST)
+            pago_principal = pagos_info[0]
+            metodo_pago_info = {
+                'metodo': pago_principal['metodo'],
+                'monto': pago_principal['monto'],
+                'referencia': pago_principal.get('monto_recibido', pago_principal.get('referencia', ''))
+            }
+
             # 3. Llama al servicio de negocio FIFO
             venta_creada = procesar_venta(
                 cliente=cliente_obj,
                 direccion=direccion_obj,
                 items_data=items_data,
-                metodo_pago_info=pagos_info,
-                usuario=request.user, 
+                metodo_pago_info=metodo_pago_info,
                 canal=data.get('canal', 'pos'),
             )
             
@@ -536,12 +563,20 @@ class VentaCreateAPIView(APIView):
             cliente_obj = Cliente.objects.get(id=data.get('cliente_id')) if data.get('cliente_id') else None
             direccion_obj = Direccion.objects.get(id=data.get('direccion_id')) if data.get('direccion_id') else None
             
+            if not pagos_info:
+                return Response({'error': 'Debe incluir al menos un pago'}, status=status.HTTP_400_BAD_REQUEST)
+            pago_principal = pagos_info[0]
+            metodo_pago_info = {
+                'metodo': pago_principal['metodo'],
+                'monto': pago_principal['monto'],
+                'referencia': pago_principal.get('monto_recibido', pago_principal.get('referencia', ''))
+            }
+
             venta_creada = procesar_venta(
                 cliente=cliente_obj,
                 direccion=direccion_obj,
                 items_data=items_data,
-                metodo_pago_info=pagos_info,
-                usuario=request.user, 
+                metodo_pago_info=metodo_pago_info,
                 canal=data.get('canal', 'pos'),
             )
             
@@ -587,7 +622,6 @@ def finalizar_compra_view(request):
                 cliente=carrito.cliente,
                 items_data=items,
                 metodo_pago_info=pagos_info,
-                usuario=request.user if request.user.is_authenticated else None,
                 canal='web'
             )
             

@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -30,7 +31,7 @@ def procesar_venta(cliente, items_data, metodo_pago_info, canal='pos', direccion
             fecha=timezone.now()
         )
 
-        total_acumulado = 0
+        total_acumulado = Decimal('0')
         
         # 2. Iterar sobre cada producto solicitado
         for item in items_data:
@@ -101,7 +102,7 @@ def procesar_venta(cliente, items_data, metodo_pago_info, canal='pos', direccion
         # Asumiendo IVA incluido en el precio de lista, desglosamos:
         # Precio = Neto * 1.19  => Neto = Precio / 1.19
         venta.total = total_acumulado
-        venta.neto = total_acumulado / 1.19
+        venta.neto = total_acumulado / Decimal('1.19')
         venta.iva = total_acumulado - venta.neto
         venta.save()
 

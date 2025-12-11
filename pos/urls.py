@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from rest_framework.routers import DefaultRouter
 from dj_rest_auth.views import LoginView, LogoutView
 from . import views
+from .views_venta_json import procesar_venta_json
 
 router = DefaultRouter()
 
@@ -57,4 +58,7 @@ urlpatterns = [
 
     # Rutas para reportes
     path('reportes/stock-bajo/', views.ProductosStockBajoList.as_view(), name='reporte-stock-bajo'),
+    
+    # Endpoint para procesar ventas desde React
+    path('api/procesar-venta/', procesar_venta_json, name='procesar-venta-json'),
 ]

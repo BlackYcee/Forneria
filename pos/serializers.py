@@ -17,6 +17,8 @@ class ItemVentaInputSerializer(serializers.Serializer):
     """Para validar la lista de productos y cantidades al crear una venta."""
     producto_id = serializers.IntegerField()
     cantidad = serializers.IntegerField(min_value=1)
+    # El frontend envía este campo; se acepta pero el precio oficial se toma del producto en servidor
+    precio_unitario = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
 
 class PagoInputSerializer(serializers.Serializer):
     """Para validar la información de pago al crear una venta."""
@@ -36,6 +38,13 @@ class VentaInputSerializer(serializers.Serializer):
     cliente_id = serializers.IntegerField(required=False, allow_null=True)
     direccion_id = serializers.IntegerField(required=False, allow_null=True)
     canal = serializers.CharField(max_length=10, required=False)
+    # Campos adicionales para Delivery
+    direccion_entrega = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    referencias = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    instrucciones = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    cliente_nombre = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    cliente_telefono = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    cliente_email = serializers.EmailField(required=False, allow_blank=True)
 
 
 # ==========================================
@@ -79,38 +88,74 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return user
 
 class EmpleadoSerializer(serializers.ModelSerializer):
-    nombre_completo = serializers.CharField(source='__str__', read_only=True)
+    # Campos de escritura (solo para crear)
+    nombre_completo = serializers.CharField(write_only=True, required=True)
+    usuario = serializers.CharField(write_only=True, required=True, source='username')
+    password = serializers.CharField(write_only=True, required=True)
+    
+    # Campos de lectura (para mostrar la información)
+    nombre_usuario = serializers.CharField(source='usuario.username', read_only=True)
+    nombre_completo_display = serializers.SerializerMethodField()
     
     class Meta:
         model = Empleado
-        fields = '__all__'
-
-# empleados/serializers.py
-class EmpleadoCreateSerializer(serializers.ModelSerializer):
-    usuario = UserCreateSerializer() 
-
-    class Meta:
-        model = Empleado
-        # Necesitas todos los campos del Empleado, menos la relación 'usuario' 
-        # (que ahora es el serializador anidado)
-        fields = ['run', 'fono', 'direccion', 'cargo', 'usuario'] 
-
+        fields = ['id', 'nombres', 'apellido_paterno', 'run', 'correo', 'fono', 
+                  'clave', 'direccion', 'cargo', 'nombre_completo', 'usuario', 'password',
+                  'nombre_usuario', 'nombre_completo_display']
+        extra_kwargs = {
+            'run': {'required': False},
+            'correo': {'required': False},
+            'fono': {'required': False},
+            'clave': {'required': False},
+            'direccion': {'required': False},
+            'nombres': {'required': False},
+            'apellido_paterno': {'required': False},
+        }
+    
+    def get_nombre_completo_display(self, obj):
+        """Devuelve el nombre completo del empleado"""
+        return f"{obj.nombres} {obj.apellido_paterno}"
+    
     def create(self, validated_data):
-        # 1. Extrae los datos del User anidado
-        user_data = validated_data.pop('usuario')
-
-        # 2. Crea el objeto User
+        from django.utils.crypto import get_random_string
+        
+        # Extraer campos
+        username = validated_data.pop('username')
+        password = validated_data.pop('password')
+        nombre_completo = validated_data.pop('nombre_completo')
+        
+        # Separar nombre y apellido
+        partes = nombre_completo.split(' ', 1)
+        nombres = partes[0] if partes else 'Sin nombre'
+        apellido = partes[1] if len(partes) > 1 else 'Sin apellido'
+        
+        # Crear el usuario de Django
         user = User.objects.create_user(
-            username=user_data['username'],
-            email=user_data.get('email', ''), # Usar get() si el campo es opcional
-            first_name=user_data.get('first_name', ''),
-            last_name=user_data.get('last_name', ''),
-            password=user_data['password']
+            username=username,
+            password=password,
+            first_name=nombres,
+            last_name=apellido
         )
-
-        # 3. Crea el objeto Empleado, vinculándolo al User
-        empleado = Empleado.objects.create(usuario=user, **validated_data)
+        
+        # Agregar datos al empleado
+        validated_data['nombres'] = nombres
+        validated_data['apellido_paterno'] = apellido
+        validated_data['usuario'] = user
+        
+        # Generar RUN temporal único si no se proporcionó
+        if 'run' not in validated_data or not validated_data.get('run'):
+            # Generar RUN temporal basado en el ID del usuario
+            validated_data['run'] = f"TEMP-{user.id}-{get_random_string(6)}"
+        
+        # Generar fono temporal único si no se proporcionó
+        if 'fono' not in validated_data or not validated_data.get('fono'):
+            # Usar el ID del usuario como fono temporal
+            validated_data['fono'] = 900000000 + user.id
+        
+        # Crear el empleado
+        empleado = Empleado.objects.create(**validated_data)
         return empleado
+
 
 class CustomJWTSerializer(JWTSerializer):
     def validate(self, attrs):
@@ -199,8 +244,18 @@ class LoteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lote
-        fields = '__all__'
-        read_only_fields = ['stock_actual']
+        fields = ['id', 'numero_lote', 'producto', 'producto_nombre', 'fecha_elaboracion', 
+                  'fecha_caducidad', 'stock_inicial', 'stock_actual', 'precio_costo_unitario',
+                  'esta_vencido', 'creado', 'eliminado']
+        extra_kwargs = {
+            'stock_actual': {'required': False}  # Hacer opcional en creación
+        }
+
+    def create(self, validated_data):
+        """Copiar stock_inicial a stock_actual al crear un lote nuevo si no viene"""
+        if 'stock_actual' not in validated_data:
+            validated_data['stock_actual'] = validated_data['stock_inicial']
+        return super().create(validated_data)
 
 class MovimientoInventarioSerializer(serializers.ModelSerializer):
     producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)

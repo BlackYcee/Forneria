@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('pos', '0007_pago_monto_recibido_pago_vuelto_alter_pago_monto'),
+        ('pos', '0001_initial'),
     ]
 
     operations = [

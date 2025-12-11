@@ -77,6 +77,12 @@ class Producto(models.Model):
         if cantidad is None or cantidad <= 0:
             return False
         return self.stock_total() >= int(cantidad)
+    
+    def actualizar_stock_desde_lotes(self):
+        """Recalcula stock_fisico sumando stock_actual de todos los lotes"""
+        total = self.lotes.aggregate(total=Sum('stock_actual'))['total'] or 0
+        self.stock_fisico = total
+        self.save(update_fields=['stock_fisico'])
 
 class Nutricional(models.Model):
     calorias = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -111,6 +117,16 @@ class Lote(models.Model):
 
     def __str__(self):
         return f"Lote {self.numero_lote} - {self.producto.nombre}"
+
+    def save(self, *args, **kwargs):
+        """Al crear un lote nuevo, copiar stock_inicial a stock_actual automáticamente"""
+        if not self.pk:  # Si es un lote nuevo (no tiene ID aún)
+            if not self.stock_actual:
+                self.stock_actual = self.stock_inicial
+        super().save(*args, **kwargs)
+        
+        # Recalcular el stock_fisico del producto
+        self.producto.actualizar_stock_desde_lotes()
 
     @property
     def esta_vencido(self):
@@ -393,6 +409,11 @@ def actualizar_stock_producto(sender, instance, **kwargs):
     if producto.stock_fisico != total:
         producto.stock_fisico = total
         producto.save(update_fields=['stock_fisico'])
+
+@receiver(post_delete, sender=Lote)
+def actualizar_stock_al_eliminar_lote(sender, instance, **kwargs):
+    """Cuando se elimina un lote, recalcular el stock del producto"""
+    instance.producto.actualizar_stock_desde_lotes()
 
 # ==========================================
 # 8. GASTOS OPERATIVOS
