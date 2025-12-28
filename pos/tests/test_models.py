@@ -50,11 +50,11 @@ class PosModelsTestCase(TestCase):
 
     def test_venta_calculo_y_actualizar_stock(self):
         # crear venta
-        v = Venta.objects.create(fecha=timezone.now(), total_sin_iva=0, total_iva=0, descuento=0, total_con_iva=0, canal_venta='presencial')
+        v = Venta.objects.create(fecha=timezone.now(), neto=0, iva=0, total=0, canal_venta='presencial')
         # detalle: 3 unidades
         DetalleVenta.objects.create(cantidad=3, precio_unitario=1000.00, descuento_pct=0, venta=v, producto=self.prod)
         resumen = v.calcular_totales_desde_detalles()
-        self.assertIn('total_con_iva', resumen)
+        self.assertIn('total', resumen)
         # actualizar stock (consume lotes)
         v.actualizar_stock()
         self.prod.refresh_from_db()

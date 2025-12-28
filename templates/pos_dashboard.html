@@ -1,4 +1,4 @@
-{% extends "basepos.html" %}
+{% extends "pos/basepos.html" %}
 {% load static %}
 {% load currency %}
 
@@ -64,9 +64,30 @@ new Chart(ctx, {
   type: 'line',
   data: {
     labels: dd.labels,
-    datasets: [{ label: 'Total diario (CLP)', data: dd.data, borderColor: '#2d6cdf', backgroundColor: 'rgba(45,108,223,0.08)', tension: 0.2 }]
+    datasets: [{ 
+      label: 'Total diario (CLP)', 
+      data: dd.data, 
+      borderColor: '#2d6cdf', 
+      backgroundColor: 'rgba(45,108,223,0.08)', 
+      tension: 0.2,
+      pointRadius: 4,
+      pointHoverRadius: 6
+    }]
   },
-  options: { scales: { x: { ticks: { maxRotation: 45, minRotation: 45 } } }, plugins: { legend: { display: false } } }
+  options: { 
+    scales: { 
+      x: { 
+        ticks: { maxRotation: 45, minRotation: 45 }
+      },
+      y: {
+        beginAtZero: true
+      }
+    }, 
+    plugins: { 
+      legend: { display: false } 
+    },
+    maintainAspectRatio: true
+  }
 });
 
 // Meses

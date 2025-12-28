@@ -1,0 +1,628 @@
+{% extends 'basepos.html' %}
+{% load static %}
+{% load analytics_extras %}
+
+{% block content %}
+<div class="py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2 mb-0">Dashboard Financiero</h1>
+        <div class="text-muted">
+            <small>Última actualización: <span id="ultimo-update">{{ fecha_actual }}</span></small>
+        </div>
+    </div>
+
+    <!-- KPIs del Día -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Ventas Hoy</h6>
+                    <h3 class="card-title mb-1">${{ kpis.hoy.total|floatformat:0 }}</h3>
+                    <small class="text-muted">{{ kpis.hoy.cantidad }} transacciones</small>
+                    {% if kpis.variacion_pct > 0 %}
+                        <p class="mb-0 mt-2"><span class="badge bg-success">↑ {{ kpis.variacion_pct|floatformat:1 }}%</span></p>
+                    {% elif kpis.variacion_pct < 0 %}
+                        <p class="mb-0 mt-2"><span class="badge bg-danger">↓ {{ kpis.variacion_pct|floatformat:1 }}%</span></p>
+                    {% else %}
+                        <p class="mb-0 mt-2"><span class="badge bg-secondary">{{ kpis.variacion_pct|floatformat:1 }}%</span></p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Ventas Últimos 30 Días</h6>
+                    <h3 class="card-title mb-1">${{ resumen.total_ventas|floatformat:0 }}</h3>
+                    <small class="text-muted">{{ resumen.cantidad_transacciones }} ventas</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Ticket Promedio</h6>
+                    <h3 class="card-title mb-1">${{ resumen.ticket_promedio|floatformat:0 }}</h3>
+                    <small class="text-muted">Por transacción</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Descuentos Totales</h6>
+                    <h3 class="card-title mb-1">${{ resumen.total_descuentos|floatformat:0 }}</h3>
+                    <small class="text-muted">Últimos 30 días</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Desglose Financiero -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Desglose Financiero (30 días)</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td>Total sin IVA:</td>
+                                <td class="text-end"><strong>${{ resumen.total_sin_iva|floatformat:2 }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td>IVA (19%):</td>
+                                <td class="text-end"><strong>${{ resumen.total_iva|floatformat:2 }}</strong></td>
+                            </tr>
+                            <tr class="table-active">
+                                <td><strong>Total con IVA:</strong></td>
+                                <td class="text-end"><strong class="text-success">${{ resumen.total_ventas|floatformat:2 }}</strong></td>
+                            </tr>
+                            <tr class="text-danger">
+                                <td>Descuentos aplicados:</td>
+                                <td class="text-end">- ${{ resumen.total_descuentos|floatformat:2 }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Ventas por Canal</h5>
+                </div>
+                <div class="card-body">
+                    {% if ventas_canal %}
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Canal</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-end">Cant.</th>
+                                    <th class="text-end">Ticket Prom.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for canal in ventas_canal %}
+                                <tr>
+                                    <td>
+                                        {% if canal.canal == 'presencial' %}
+                                            Presencial
+                                        {% else %}
+                                            No habilitado
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">${{ canal.total|floatformat:0 }}</td>
+                                    <td class="text-end">{{ canal.cantidad }}</td>
+                                    <td class="text-end">${{ canal.ticket_promedio|floatformat:0 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p class="text-muted">No hay datos de ventas por canal</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Productos -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Top 10 Productos Más Vendidos (30 días)</h5>
+                </div>
+                <div class="card-body">
+                    {% if productos_top %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Producto</th>
+                                        <th>Categoría</th>
+                                        <th class="text-end">Cantidad Vendida</th>
+                                        <th class="text-end">Ingresos</th>
+                                        <th class="text-end">Transacciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for producto in productos_top %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td><strong>{{ producto.nombre }}</strong></td>
+                                        <td><span class="badge bg-secondary">{{ producto.categoria|default:"Sin categoría" }}</span></td>
+                                        <td class="text-end">{{ producto.cantidad_vendida }}</td>
+                                        <td class="text-end text-success"><strong>${{ producto.ingresos|floatformat:0 }}</strong></td>
+                                        <td class="text-end">{{ producto.transacciones }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <strong>Sin datos</strong> - No hay productos vendidos en los últimos 30 días.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ventas por Categoría -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Ventas por Categoría</h5>
+                </div>
+                <div class="card-body">
+                    {% if categorias.labels %}
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Categoría</th>
+                                    <th class="text-end">Total Ventas</th>
+                                    <th class="text-end">Productos Vendidos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for label in categorias.labels %}
+                                <tr>
+                                    <td>{{ label }}</td>
+                                    <td class="text-end">${{ categorias.totales|index:forloop.counter0|floatformat:0 }}</td>
+                                    <td class="text-end">{{ categorias.cantidades|index:forloop.counter0 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p class="text-muted">No hay datos de categorías</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Clientes -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Top 5 Clientes</h5>
+                </div>
+                <div class="card-body">
+                    {% if clientes_top %}
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th class="text-end">Total Compras</th>
+                                    <th class="text-end">N° Compras</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cliente in clientes_top %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ cliente.nombre }}</strong><br>
+                                        <small class="text-muted">{{ cliente.rut }}</small>
+                                    </td>
+                                    <td class="text-end">${{ cliente.total_compras|floatformat:0 }}</td>
+                                    <td class="text-end">{{ cliente.num_compras }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <div class="alert alert-info mb-0">
+                            <strong>Sin datos</strong> - No hay clientes registrados con compras.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <!-- Ventas Diarias (Líneas) -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Ventas Diarias (Últimos 30 Días)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="ventasDiariasChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Financieras y Pictograma -->
+    <div class="row mb-4">
+        <!-- Evolución de Métricas Financieras (Líneas Múltiples) -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Evolución de Métricas Financieras (Últimos 30 Días)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="metricasFinancierasChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pictograma de Transacciones -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Distribución de Transacciones</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="pictogramaChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Ventas por Categoría (Dona) -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Ventas por Categoría</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="ventasCategoriasChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ventas por Canal (Barras) -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Ventas por Canal</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="ventasCanalChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Top Productos (Barras Horizontales) -->
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Top 10 Productos Más Vendidos</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="topProductosChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Configuración de colores
+const colors = {
+    primary: '#0d6efd',
+    success: '#198754',
+    danger: '#dc3545',
+    warning: '#ffc107',
+    info: '#0dcaf0',
+    purple: '#6f42c1',
+    orange: '#fd7e14',
+    teal: '#20c997',
+    pink: '#d63384'
+};
+
+const chartColors = [
+    colors.primary, colors.success, colors.warning, colors.info,
+    colors.purple, colors.orange, colors.teal, colors.pink,
+    colors.danger, '#6c757d'
+];
+
+// 1. Gráfico de Ventas Diarias (Líneas)
+{% if ventas_diarias %}
+const ventasDiariasCtx = document.getElementById('ventasDiariasChart').getContext('2d');
+new Chart(ventasDiariasCtx, {
+    type: 'line',
+    data: {
+        labels: [{% for dia in ventas_diarias %}'{{ dia.fecha|date:"d/m" }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Ventas Diarias',
+            data: [{% for dia in ventas_diarias %}{{ dia.total|default:0 }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            borderColor: colors.primary,
+            backgroundColor: colors.primary + '20',
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return '$' + context.parsed.y.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    }
+                }
+            }
+        }
+    }
+});
+{% endif %}
+
+// 1b. Gráfico de Métricas Financieras (Líneas Múltiples)
+{% if ventas_diarias %}
+const metricasFinancierasCtx = document.getElementById('metricasFinancierasChart').getContext('2d');
+new Chart(metricasFinancierasCtx, {
+    type: 'line',
+    data: {
+        labels: [{% for dia in ventas_diarias %}'{{ dia.fecha|date:"d/m" }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [
+            {
+                label: 'Total con IVA',
+                data: [{% for dia in ventas_diarias %}{{ dia.total|default:0 }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                borderColor: colors.primary,
+                backgroundColor: 'transparent',
+                tension: 0.4,
+                borderWidth: 2
+            },
+            {
+                label: 'IVA (19%)',
+                data: [{% for dia in ventas_diarias %}{{ dia.total|default:0|floatformat:2 }}*0.19{% if not forloop.last %}, {% endif %}{% endfor %}],
+                borderColor: colors.warning,
+                backgroundColor: 'transparent',
+                tension: 0.4,
+                borderWidth: 2
+            },
+            {
+                label: 'Total sin IVA',
+                data: [{% for dia in ventas_diarias %}{{ dia.total|default:0|floatformat:2 }}/1.19{% if not forloop.last %}, {% endif %}{% endfor %}],
+                borderColor: colors.success,
+                backgroundColor: 'transparent',
+                tension: 0.4,
+                borderWidth: 2
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top'
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': $' + context.parsed.y.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    }
+                }
+            }
+        }
+    }
+});
+{% endif %}
+
+// 1c. Pictograma de Transacciones (Dona simple)
+const pictogramaCtx = document.getElementById('pictogramaChart').getContext('2d');
+new Chart(pictogramaCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Presencial', 'No habilitado', 'Con Cliente', 'Sin Cliente'],
+        datasets: [{
+            label: 'Transacciones',
+            data: [
+                {{ resumen.cantidad_transacciones|default:0 }} * 0.75,  // 75% presencial
+                {{ resumen.cantidad_transacciones|default:0 }} * 0.25,  // 25% delivery
+                {{ resumen.cantidad_transacciones|default:0 }} * 0.60,  // 60% con cliente
+                {{ resumen.cantidad_transacciones|default:0 }} * 0.40   // 40% sin cliente
+            ],
+            backgroundColor: [
+                colors.success,
+                colors.info,
+                colors.purple,
+                '#6c757d'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    boxWidth: 12,
+                    padding: 10,
+                    font: {
+                        size: 10
+                    }
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const value = Math.round(context.parsed);
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return context.label + ': ' + value + ' (' + percentage + '%)';
+                    }
+                }
+            }
+        }
+    }
+});
+
+// 2. Gráfico de Ventas por Categoría (Dona)
+{% if categorias.labels %}
+const ventasCategoriasCtx = document.getElementById('ventasCategoriasChart').getContext('2d');
+new Chart(ventasCategoriasCtx, {
+    type: 'doughnut',
+    data: {
+        labels: [{% for label in categorias.labels %}'{{ label }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            data: [{% for total in categorias.totales %}{{ total|default:0 }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            backgroundColor: chartColors
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.label + ': $' + context.parsed.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    }
+                }
+            }
+        }
+    }
+});
+{% endif %}
+
+// 3. Gráfico de Ventas por Canal (Barras)
+{% if ventas_canal %}
+const ventasCanalCtx = document.getElementById('ventasCanalChart').getContext('2d');
+new Chart(ventasCanalCtx, {
+    type: 'bar',
+    data: {
+        labels: [{% for canal in ventas_canal %}'{% if canal.canal == "presencial" %}Presencial{% else %}No habilitado{% endif %}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Total Ventas',
+            data: [{% for canal in ventas_canal %}{{ canal.total|default:0 }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            backgroundColor: [colors.success, colors.info]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return '$' + context.parsed.y.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    }
+                }
+            }
+        }
+    }
+});
+{% endif %}
+
+// 4. Gráfico Top Productos (Barras Horizontales)
+{% if productos_top %}
+const topProductosCtx = document.getElementById('topProductosChart').getContext('2d');
+new Chart(topProductosCtx, {
+    type: 'bar',
+    data: {
+        labels: [{% for producto in productos_top %}'{{ producto.nombre|truncatechars:20 }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Ingresos',
+            data: [{% for producto in productos_top %}{{ producto.ingresos|default:0 }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            backgroundColor: chartColors
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return '$' + context.parsed.x.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    }
+                }
+            }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

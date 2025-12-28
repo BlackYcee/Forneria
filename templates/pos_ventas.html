@@ -1,4 +1,4 @@
-{% extends "basepos.html" %}
+{% extends "pos/basepos.html" %}
 {% load static %}
 {% load currency %}
 
@@ -33,7 +33,7 @@
     <tbody>
       {% for v in ventas %}
       <tr>
-        <td>{{ v.folio }}</td>
+        <td>{{ v.folio_documento }}</td>
         <td>{{ v.fecha|date:"Y-m-d H:i" }}</td>
         <td>
           {% if v.cliente %}
@@ -43,7 +43,7 @@
           {% endif %}
         </td>
         <td>{% if v.empleado %}{{ v.empleado.nombres }} {{ v.empleado.apellido_paterno }}{% else %}-{% endif %}</td>
-        <td>{{ v.total_con_iva|clp }}</td>
+        <td>{{ v.total|clp }}</td>
       </tr>
       {% empty %}
       <tr><td colspan="5">No hay ventas registradas.</td></tr>

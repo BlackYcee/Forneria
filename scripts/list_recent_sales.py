@@ -20,7 +20,7 @@ def main():
     for v in qs:
         cliente = v.cliente.nombre if v.cliente else 'Sin cliente'
         empleado = str(v.empleado) if v.empleado else 'Sin empleado'
-        print(f"Venta id={v.id} folio={v.folio} fecha={v.fecha} total={v.total_con_iva} pagado={v.monto_pagado} vuelto={v.vuelto} canal={v.canal_venta}")
+        print(f"Venta id={v.id} folio={v.folio} fecha={v.fecha} total={v.total} canal={v.canal_venta}")
         print(f"  Cliente: {cliente} | Empleado: {empleado}")
         detalles = v.detalleventa_set.all()
         for d in detalles:

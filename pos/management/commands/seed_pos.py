@@ -68,12 +68,11 @@ class Command(BaseCommand):
 
             venta = Venta.objects.create(
                 fecha=fecha_venta,
-                total_sin_iva=Decimal('0.00'),
-                total_iva=Decimal('0.00'),
-                descuento=Decimal('0.00'),
-                total_con_iva=Decimal('0.00'),
+                neto=Decimal('0.00'),
+                iva=Decimal('0.00'),
+                total=Decimal('0.00'),
                 canal_venta=random.choice(['presencial', 'delivery']),
-                folio=f"F{1000 + i}",
+                folio_documento=f"F{1000 + i}",
                 cliente=cliente,
                 empleado=empleado,
             )
@@ -97,11 +96,8 @@ class Command(BaseCommand):
             totales = venta.calcular_totales_desde_detalles()
 
             # crear pago (simulado)
-            monto_pagado = Decimal(totales['total_con_iva'])
-            Pago.objects.create(venta=venta, monto=monto_pagado, metodo='efectivo')
-            venta.monto_pagado = monto_pagado
-            venta.vuelto = Decimal('0.00')
-            venta.save(update_fields=['monto_pagado', 'vuelto'])
+            monto_pagado = Decimal(totales['total'])
+            Pago.objects.create(venta=venta, monto=monto_pagado, metodo='EFE')
 
             ventas_creadas += 1
 

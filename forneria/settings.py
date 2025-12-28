@@ -1,23 +1,32 @@
 from pathlib import Path
+from datetime import timedelta
 import os
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+
+# ==========================================
+# 1. PATHS DE PROYECTO
+# ==========================================
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+# ==========================================
+# 2. SEGURIDAD Y DEPURACIÓN (SECURITY & DEBUG)
+# ==========================================
 
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-2hvq+3_ztv+_dsrnw%b)&a$s&&0yqb!@p3d!)in(d&-_s-oip^'
-
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
 ALLOWED_HOSTS = []
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Vite
+    "http://localhost:3000",  # CRA
+]
 
-# Application definition
+
+# ==========================================
+# 3. DEFINICIÓN DE APLICACIONES (APPS)
+# ==========================================
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -27,13 +36,29 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    'corsheaders',
     'rest_framework',
-    'dj_rest_auth', 
+    'django_filters',
+    'rest_framework_simplejwt',
+    'dj_rest_auth',
+    'drf_spectacular',
+    'drf_spectacular_sidecar',
+    
     'pos',
     'inventario',
+    'pedido',
+    'analytics',
+    'landing',
+    'reportes'
 ]
 
+
+# ==========================================
+# 4. MIDDLEWARE
+# ==========================================
+
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -44,7 +69,12 @@ MIDDLEWARE = [
 ]
 
 
+# ==========================================
+# 5. CONFIGURACIÓN DE URLS Y TEMPLATES
+# ==========================================
+
 ROOT_URLCONF = 'forneria.urls'
+WSGI_APPLICATION = 'forneria.wsgi.application'
 
 TEMPLATES = [
     {
@@ -57,89 +87,96 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
-            # Registrar templatetags comunes como builtins evita tener que
-            # hacer {% load currency %} en cada plantilla.
-            'builtins': [
-                'pos.templatetags.currency',
-            ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'forneria.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# ==========================================
+# 6. BASE DE DATOS (DATABASE) -> SQLITE
+# ==========================================
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'forneria',
-        'USER': 'root',
-        'PASSWORD': 'REACH',  
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
 
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
+# ==========================================
+# 7. VALIDACIÓN DE CONTRASEÑAS
+# ==========================================
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
+# ==========================================
+# 8. INTERNACIONALIZACIÓN (I18N)
+# ==========================================
 
-LANGUAGE_CODE = 'es-cl'  
-
+LANGUAGE_CODE = 'es-cl'
 TIME_ZONE = 'America/Santiago'
-
 USE_I18N = True
-
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+# ==========================================
+# 9. ARCHIVOS ESTÁTICOS Y DEFAULTS
+# ==========================================
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
+# ==========================================
+# 10. CONFIGURACIÓN DE REST FRAMEWORK (DRF)
+# ==========================================
+
 REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',   
-        'dj_rest_auth.jwt_auth.JWTCookieAuthentication',        
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
     ],
 }
 
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Mi API',
+    'DESCRIPTION': 'Documentación de mi API con drf-spectacular',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+    },
+}
+
+
+# ==========================================
+# 11. AUTENTICACIÓN JWT (SIMPLE JWT & DJ-REST-AUTH)
+# ==========================================
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=12),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "AUTH_HEADER_TYPES": ("Bearer",)
+}
 
 REST_AUTH = {
     'USE_JWT': True,
-    'TOKEN_MODEL': None,  
+    'TOKEN_MODEL': None,
     'JWT_AUTH_COOKIE': 'djangojwtauth_cookie',
     'JWT_AUTH_REFRESH_COOKIE': 'djangojwtauth_refresh_cookie',
+}
+
+REST_AUTH_SERIALIZERS = {
+    'JWT_SERIALIZER': 'pos.serializers.CustomJWTSerializer',
 }

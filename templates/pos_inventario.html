@@ -1,4 +1,4 @@
-{% extends "basepos.html" %}
+{% extends "pos/basepos.html" %}
 {% load static %}
 {% load currency %}
 
@@ -28,7 +28,7 @@
           | <a href="{% url 'producto_delete' p.id %}">Eliminar</a>
         </td>
         <td>{{ p.categoria.nombre }}</td>
-        <td>{{ p.precio|clp }}</td>
+        <td>{{ p.precio_venta|clp }}</td>
         <td>{{ p.stock_total }}</td>
       </tr>
       {% empty %}
